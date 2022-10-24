@@ -47,7 +47,7 @@ echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > $LOGFILE 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
-arch-chroot $MOUNTPOINT /bin/bash <<"EOT" > $LOGFILE 2>&1
+arch-chroot $MOUNTPOINT /bin/bash -- << EOT > $LOGFILE 2>&1
 
 echo "Update system"
 pacman -Syu --noconfirm
