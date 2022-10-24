@@ -25,14 +25,14 @@ arch-chroot /mnt /bin/nash <<"EOT"
 ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
 locale-gen
 
-pacman -S grub
+pacman -S --noconfirm grub
 grub-install /dev/sda
 grub-mkconfig -o /boot/grub/grub.cfg
 
 pacman -S dhcpcd
 systemctl enable dhcpcd
 
-pacman -S avahi
+pacman -S --noconfirm avahi
 systemctl enable avahi-daemon
 
 useradd -m homedudycz
