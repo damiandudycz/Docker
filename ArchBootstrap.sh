@@ -21,7 +21,7 @@ fi
 
 # Prepare Disk
 echo "Prepare Disk"
-dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
+#dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
 printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda$LOGFILE 2>&1 # setup partitions
 mkfs.ext4 ${DISK}2$LOGFILE 2>&1 # Format root partition
 
