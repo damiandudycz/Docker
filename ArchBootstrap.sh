@@ -3,8 +3,9 @@
 # Use either for docker host or docker guest. #
 # Work in progress. #
 
-DISK=$1 # /dev/sda
-MOUNTPOINT=$2 # /mnt
+LOGFILE=ArchBootstrap.log
+DISK=/dev/sda
+MOUNTPOINT=/mnt
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
@@ -19,34 +20,34 @@ fi
 
 # Prepare Disk
 echo "Prepare Disk"
-dd if=/dev/zero of=$DISK bs=10M status=progress > file.log 2>&1 # Wipe whole HD with zeros
-printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda > file.log 2>&1 # setup partitions
-mkfs.ext4 ${DISK}2 > file.log 2>&1 # Format root partition
+dd if=/dev/zero of=$DISK bs=10M status=progress > $LOGFILE 2>&1 # Wipe whole HD with zeros
+printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda > $LOGFILE 2>&1 # setup partitions
+mkfs.ext4 ${DISK}2 > $LOGFILE 2>&1 # Format root partition
 
 # Mount root partition
 echo "Mount root partition"
-mount ${DISK}2 $MOUNTPOINT > file.log 2>&1
+mount ${DISK}2 $MOUNTPOINT > $LOGFILE 2>&1
 
 # Install base components
 echo "Install base components"
-pacstrap -K $MOUNTPOINT $PACKAGES > file.log 2>&1
+pacstrap -K $MOUNTPOINT $PACKAGES > $LOGFILE 2>&1
 
 # Setup fstab
 echo "Setup fstab"
-genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab > file.log 2>&1
+genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab > $LOGFILE 2>&1
 
 # Setup hostname
 echo "Setup hostname"
-echo "homeserver" >> $MOUNTPOINT/etc/hostname > file.log 2>&1
+echo "homeserver" >> $MOUNTPOINT/etc/hostname > $LOGFILE 2>&1
 
 # Setup locale
 echo "Setup hostname"
-sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen > file.log 2>&1
-echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > file.log 2>&1
+sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen > $LOGFILE 2>&1
+echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > $LOGFILE 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
-arch-chroot $MOUNTPOINT /bin/bash <<"EOT" > file.log 2>&1
+arch-chroot $MOUNTPOINT /bin/bash <<"EOT" > $LOGFILE 2>&1
 
 echo "Update system"
 pacman -Syu --noconfirm
@@ -60,7 +61,7 @@ locale-gen
 echo "Install GRUB"
 pacman -S --noconfirm grub
 grub-install $DISK
-sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf > file.log 2>&1
+sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf > $LOGFILE 2>&1
 grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Install DHCPCD"
