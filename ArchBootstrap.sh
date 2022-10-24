@@ -1,6 +1,6 @@
 # Prepare Hard drive
 wipefs -a /dev/sda
-printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n4\nw\n" | fdisk /dev/sda
+printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda
 mkfs.ext4 /dev/sda2
 
 # Mount disk
