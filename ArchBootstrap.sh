@@ -3,7 +3,13 @@
 # Use either for docker host or docker guest. #
 # Work in progress. #
 
+DISK=/dev/sda
 MOUNTPOINT=$1
+USERNAME=homedudycz
+PASSWORD=Apple1208
+TIMEZONE=Europe/Warsaw
+PACKAGES="base linux"
+LOCALE=en_US.UTF-8
 
 # Check if run as root
 if [ "$EUID" -ne 0 ]
@@ -13,17 +19,17 @@ fi
 
 # Prepare Disk
 echo "Prepare Disk"
-dd if=/dev/zero of=/dev/sda bs=10M status=progress > file.log 2>&1 # Wipe whole HD with zeros
+dd if=/dev/zero of=$DISK bs=10M status=progress > file.log 2>&1 # Wipe whole HD with zeros
 printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda > file.log 2>&1 # setup partitions
-mkfs.ext4 /dev/sda2 > file.log 2>&1 # Format root partition
+mkfs.ext4 $DISK2 > file.log 2>&1 # Format root partition
 
 # Mount root partition
 echo "Mount root partition"
-mount /dev/sda2 $MOUNTPOINT > file.log 2>&1
+mount $DISK $MOUNTPOINT > file.log 2>&1
 
 # Install base components
 echo "Install base components"
-pacstrap -K $MOUNTPOINT base linux > file.log 2>&1
+pacstrap -K $MOUNTPOINT $PACKAGES > file.log 2>&1
 
 # Setup fstab
 echo "Setup fstab"
@@ -35,22 +41,22 @@ echo "homeserver" >> $MOUNTPOINT/etc/hostname > file.log 2>&1
 
 # Setup locale
 echo "Setup hostname"
-sed -i '/en_US.UTF-8/s/^#//g' $MOUNTPOINT/etc/locale.gen > file.log 2>&1
-echo "LANG=en_US.UTF-8" >> $MOUNTPOINT/etc/locale.conf > file.log 2>&1
+sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen > file.log 2>&1
+echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > file.log 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
 arch-chroot $MOUNTPOINT /bin/bash <<"EOT" > file.log 2>&1
 
 echo "Link timezone"
-ln -sf /usr/share/zoneinfo/Europe/Warsaw /etc/localtime
+ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
 
 echo "Generate locale"
 locale-gen
 
 echo "Install GRUB"
 pacman -S --noconfirm grub
-grub-install /dev/sda
+grub-install $DISK
 sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf > file.log 2>&1
 grub-mkconfig -o /boot/grub/grub.cfg
 
@@ -63,7 +69,7 @@ pacman -S --noconfirm avahi
 systemctl enable avahi-daemon
 
 echo "Create user"
-useradd -m homedudycz
-printf "Apple1208\nApple1208\n" | passwd homedudycz
+useradd -m $USERNAME
+printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 
 EOT
