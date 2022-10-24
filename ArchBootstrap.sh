@@ -3,8 +3,8 @@
 # Use either for docker host or docker guest. #
 # Work in progress. #
 
-DISK=/dev/sda
-MOUNTPOINT=$1
+DISK=$1 # /dev/sda
+MOUNTPOINT=$2 # /mnt
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
@@ -21,11 +21,11 @@ fi
 echo "Prepare Disk"
 dd if=/dev/zero of=$DISK bs=10M status=progress > file.log 2>&1 # Wipe whole HD with zeros
 printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda > file.log 2>&1 # setup partitions
-mkfs.ext4 $DISK2 > file.log 2>&1 # Format root partition
+mkfs.ext4 ${DISK}2 > file.log 2>&1 # Format root partition
 
 # Mount root partition
 echo "Mount root partition"
-mount $DISK $MOUNTPOINT > file.log 2>&1
+mount ${DISK}2 $MOUNTPOINT > file.log 2>&1
 
 # Install base components
 echo "Install base components"
@@ -47,6 +47,9 @@ echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > file.log 2>&1
 # chroot and setup new environment
 echo "chroot and setup new environment"
 arch-chroot $MOUNTPOINT /bin/bash <<"EOT" > file.log 2>&1
+
+echo "Update system"
+pacman -Syu --noconfirm
 
 echo "Link timezone"
 ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
