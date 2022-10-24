@@ -9,7 +9,7 @@ MOUNTPOINT=/mnt
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
-PACKAGES="base linux"
+PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
 LOCALE=en_US.UTF-8
 
 # Check if run as root
@@ -82,3 +82,5 @@ useradd -m $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 
 EOTCHROOT
+
+umount $MOUNTPOINT
