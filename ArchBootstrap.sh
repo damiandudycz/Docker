@@ -41,7 +41,7 @@ echo "Setup hostname"
 echo "homeserver" >> $MOUNTPOINT/etc/hostname > $LOGFILE 2>&1
 
 # Setup locale
-echo "Setup hostname"
+echo "Setup locale"
 sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen > $LOGFILE 2>&1
 echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > $LOGFILE 2>&1
 
