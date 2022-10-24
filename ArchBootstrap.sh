@@ -47,7 +47,7 @@ echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf > $LOGFILE 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
-arch-chroot $MOUNTPOINT /bin/bash -- << EOT > $LOGFILE 2>&1
+arch-chroot $MOUNTPOINT /bin/bash -- << EOTCHROOT > $LOGFILE 2>&1
 
 echo "Update system"
 pacman -Syu --noconfirm
@@ -61,7 +61,7 @@ locale-gen
 echo "Install GRUB"
 pacman -S --noconfirm grub
 grub-install $DISK
-sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf > $LOGFILE 2>&1
+sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf
 grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Install DHCPCD"
@@ -76,4 +76,4 @@ echo "Create user"
 useradd -m $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 
-EOT
+EOTCHROOT
