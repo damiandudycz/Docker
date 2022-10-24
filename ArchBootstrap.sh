@@ -81,6 +81,11 @@ useradd -m $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 usermod -aG wheel $USERNAME
 
+echo "Cleaning"
+pacman -S --noconfirm pacman-contrib
+pacman -Scc --noconfirm
+paccache -r -k0
+
 EOTCHROOT
 
 umount $MOUNTPOINT
