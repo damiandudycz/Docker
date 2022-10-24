@@ -6,6 +6,7 @@
 #LOGFILE=ArchBootstrap.log
 DISK=/dev/sda
 MOUNTPOINT=/mnt
+HOSTNAME=homeserver
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
@@ -38,7 +39,7 @@ genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab$LOGFILE 2>&1
 
 # Setup hostname
 echo "Setup hostname"
-echo "homeserver" >> $MOUNTPOINT/etc/hostname$LOGFILE 2>&1
+echo $HOSTNAME >> $MOUNTPOINT/etc/hostname$LOGFILE 2>&1
 
 # Setup locale
 echo "Setup locale"
