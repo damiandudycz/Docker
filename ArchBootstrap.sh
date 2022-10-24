@@ -72,6 +72,11 @@ echo "Install AVAHI"
 pacman -S --noconfirm avahi
 systemctl enable avahi-daemon
 
+echo "Install sudo"
+pacman -S --noconfirm sudo vi
+usermod -aG wheel $USERNAME
+sudo sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/g' /etc/sudoers
+
 echo "Create user"
 useradd -m $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
