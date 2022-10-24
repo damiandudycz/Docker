@@ -61,7 +61,7 @@ locale-gen
 echo "Install GRUB"
 pacman -S --noconfirm grub
 grub-install $DISK
-sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub >> /mnt/etc/locale.conf
+sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
 
 echo "Install DHCPCD"
