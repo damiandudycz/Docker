@@ -21,34 +21,34 @@ fi
 
 # Prepare Disk
 echo "Prepare Disk"
-#dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
-printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk /dev/sda#$LOGFILE 2>&1 # setup partitions
-mkfs.ext4 ${DISK}2#$LOGFILE 2>&1 # Format root partition
+dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
+printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK #$LOGFILE 2>&1 # setup partitions
+mkfs.ext4 ${DISK}2 #$LOGFILE 2>&1 # Format root partition
 
 # Mount root partition
 echo "Mount root partition"
-mount ${DISK}2 $MOUNTPOINT#$LOGFILE 2>&1
+mount ${DISK}2 $MOUNTPOINT #$LOGFILE 2>&1
 
 # Install base components
 echo "Install base components"
-pacstrap -K $MOUNTPOINT $PACKAGES#$LOGFILE 2>&1
+pacstrap -K $MOUNTPOINT $PACKAGES #$LOGFILE 2>&1
 
 # Setup fstab
 echo "Setup fstab"
-genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab#$LOGFILE 2>&1
+genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab #$LOGFILE 2>&1
 
 # Setup hostname
 echo "Setup hostname"
-echo $HOSTNAME >> $MOUNTPOINT/etc/hostname#$LOGFILE 2>&1
+echo $HOSTNAME >> $MOUNTPOINT/etc/hostname #$LOGFILE 2>&1
 
 # Setup locale
 echo "Setup locale"
-sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen#$LOGFILE 2>&1
-echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf#$LOGFILE 2>&1
+sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen #$LOGFILE 2>&1
+echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf #$LOGFILE 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
-arch-chroot $MOUNTPOINT /bin/bash -- << EOTCHROOT#$LOGFILE 2>&1
+arch-chroot $MOUNTPOINT /bin/bash -- << EOTCHROOT #$LOGFILE 2>&1
 
 echo "Update system"
 pacman -Syu --noconfirm
