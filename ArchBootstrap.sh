@@ -4,11 +4,11 @@
 # Work in progress. #
 
 #LOGFILE=ArchBootstrap.log
-DISK=/dev/sda
+DISK=/dev/vda
 MOUNTPOINT=/mnt
 HOSTNAME=homeserver
 USERNAME=homedudycz
-PASSWORD=Assd
+PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
 PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
 LOCALE=en_US.UTF-8
@@ -22,12 +22,16 @@ fi
 # Prepare Disk
 echo "Prepare Disk"
 dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
-printf "g\nn\n1\n\n+1M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK #$LOGFILE 2>&1 # setup partitions
-mkfs.ext4 ${DISK}2 #$LOGFILE 2>&1 # Format root partition
+printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK #$LOGFILE 2>&1 # setup partitions
+mkfs.btrfs ${DISK}2 #$LOGFILE 2>&1 # Format root partition
 
 # Mount root partition
 echo "Mount root partition"
 mount ${DISK}2 $MOUNTPOINT #$LOGFILE 2>&1
+
+# Mount boot partition
+echo "Mount boot partition"
+mount ${DISK}1 $MOUNTPOINT/boot #$LOGFILE 2>&1
 
 # Install base components
 echo "Install base components"
@@ -60,8 +64,8 @@ echo "Generate locale"
 locale-gen
 
 echo "Install GRUB"
-pacman -S --noconfirm grub
-grub-install $DISK
+pacman -S --noconfirm grub efibootmrg
+grub-install --efi-directory=$DISK/boot
 sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
 
