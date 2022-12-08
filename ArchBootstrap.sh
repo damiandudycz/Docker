@@ -24,6 +24,7 @@ echo "Prepare Disk"
 dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1 # Wipe whole HD with zeros
 printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK #$LOGFILE 2>&1 # setup partitions
 mkfs.btrfs ${DISK}2 #$LOGFILE 2>&1 # Format root partition
+mkfs.fat -F 32 ${DISK}1
 
 # Mount root partition
 echo "Mount root partition"
@@ -31,6 +32,7 @@ mount ${DISK}2 $MOUNTPOINT #$LOGFILE 2>&1
 
 # Mount boot partition
 echo "Mount boot partition"
+mkdir $MOUNTPOINT/boot
 mount ${DISK}1 $MOUNTPOINT/boot #$LOGFILE 2>&1
 
 # Install base components
@@ -64,7 +66,7 @@ echo "Generate locale"
 locale-gen
 
 echo "Install GRUB"
-pacman -S --noconfirm grub efibootmrg
+pacman -S --noconfirm grub efibootmgr
 grub-install --efi-directory=/boot
 sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
