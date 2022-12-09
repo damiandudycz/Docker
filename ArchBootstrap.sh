@@ -66,7 +66,7 @@ echo "Generate locale"
 locale-gen
 
 echo "Install GRUB"
-pacman -S --noconfirm grub efibootmg
+pacman -S --noconfirm grub efibootmgr
 grub-install --efi-directory=/boot
 sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
 grub-mkconfig -o /boot/grub/grub.cfg
