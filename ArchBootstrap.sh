@@ -10,8 +10,8 @@ HOSTNAME=archlinux
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
-#PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
-PACKAGES="base linux base-devel git openssh" # additional packages for AUR
+PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
+PACKAGES_OTHER="base-devel git openssh docker" # additional packages for AUR
 LOCALE=en_US.UTF-8
 
 # Check if run as root
@@ -88,6 +88,13 @@ echo "Create user"
 useradd -m $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 usermod -aG wheel $USERNAME
+
+# Disable if not needed
+echo "Install other"
+pacman -S --noconfirm $PACKAGES_OTHER
+usermod -aG docker $USERNAME
+systemctl enable sshd
+systemctl enable docker
 
 echo "Cleaning"
 pacman -S --noconfirm pacman-contrib
