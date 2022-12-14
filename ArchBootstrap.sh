@@ -14,6 +14,18 @@ PACKAGES="base linux" # Note: For apple virtualization we might not need to inst
 PACKAGES_OTHER="base-devel git openssh docker" # additional packages for AUR
 LOCALE=en_US.UTF-8
 
+LINK_TIMEZONE=true;
+SETUP_LOCALE=true;
+SETUP_HOSTNAME=true;
+INSTALL_GRUB=true;
+INSTALL_SUDO=true;
+INSTALL_DHCPCD=true;
+INSTALL_AVAHI=false;
+INSTALL_OTHER=false;
+CLEANING=false;
+ADD_USER=true;
+SHUTDOWN=false;
+
 # Check if run as root
 if [ "$EUID" -ne 0 ]
   then echo "Please run as root"
@@ -45,13 +57,17 @@ echo "Setup fstab"
 genfstab -U $MOUNTPOINT >> ${MOUNTPOINT}/etc/fstab #$LOGFILE 2>&1
 
 # Setup hostname
-echo "Setup hostname"
-echo $HOSTNAME >> ${MOUNTPOINT}/etc/hostname #$LOGFILE 2>&1
+if [ $SETUP_HOSTNAME ]; then
+    echo "Setup hostname"
+    echo $HOSTNAME >> ${MOUNTPOINT}/etc/hostname #$LOGFILE 2>&1
+fi
 
 # Setup locale
-echo "Setup locale"
-sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen #$LOGFILE 2>&1
-echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf #$LOGFILE 2>&1
+if [ $SETUP_LOCALE ]; then
+    echo "Setup locale"
+    sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen #$LOGFILE 2>&1
+    echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf #$LOGFILE 2>&1
+fi
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
@@ -60,49 +76,69 @@ arch-chroot $MOUNTPOINT /bin/bash -- << EOTCHROOT #$LOGFILE 2>&1
 echo "Update system"
 pacman -Syu --noconfirm
 
-echo "Link timezone"
-ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+if [ $LINK_TIMEZONE ]; then
+    echo "Link timezone"
+    ln -sf /usr/share/zoneinfo/$TIMEZONE /etc/localtime
+fi
 
 echo "Generate locale"
 locale-gen
 
-echo "Install GRUB"
-pacman -S --noconfirm grub efibootmgr
-grub-install --efi-directory=/boot
-sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
-grub-mkconfig -o /boot/grub/grub.cfg
+if [ $INSTALL_GRUB ]; then
+    echo "Install GRUB"
+    pacman -S --noconfirm grub efibootmgr
+    grub-install --efi-directory=/boot
+    sed -i 's/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=0/g' /etc/default/grub
+    grub-mkconfig -o /boot/grub/grub.cfg
+fi
 
-echo "Install DHCPCD"
-pacman -S --noconfirm dhcpcd
-systemctl enable dhcpcd
+if [ $INSTALL_DHCPCD ]; then
+    echo "Install DHCPCD"
+    pacman -S --noconfirm dhcpcd
+    systemctl enable dhcpcd
+fi
 
-echo "Install AVAHI"
-pacman -S --noconfirm avahi
-systemctl enable avahi-daemon
+if [ $INSTALL_AVAHI ]; then
+    echo "Install AVAHI"
+    pacman -S --noconfirm avahi
+    systemctl enable avahi-daemon
+fi
 
-echo "Install sudo"
-pacman -S --noconfirm sudo
-sudo sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/g' /etc/sudoers
+if [ $INSTALL_SUDO ]; then
+    echo "Install sudo"
+    pacman -S --noconfirm sudo
+    sudo sed -i 's/# %wheel ALL=(ALL:ALL) ALL/%wheel ALL=(ALL:ALL) ALL/g' /etc/sudoers
+fi
 
-echo "Create user"
-useradd -m $USERNAME
-printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
-usermod -aG wheel $USERNAME
+if [ $ADD_USER ]; then
+    echo "Create user"
+    useradd -m $USERNAME
+    printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
+    if [ $INSTALL_SUDO ]; then
+        usermod -aG wheel $USERNAME
+    fi
+fi
 
 # Disable if not needed
-echo "Install other"
-pacman -S --noconfirm $PACKAGES_OTHER
-usermod -aG docker $USERNAME
-systemctl enable sshd
-systemctl enable docker
+if [ $INSTALL_OTHER ]; then
+    echo "Install other"
+    pacman -S --noconfirm $PACKAGES_OTHER
+    usermod -aG docker $USERNAME
+    systemctl enable sshd
+    systemctl enable docker
+fi
 
-echo "Cleaning"
-pacman -S --noconfirm pacman-contrib
-pacman -Scc --noconfirm
-paccache -r -k0
+if [ $CLEANING ]; then
+    echo "Cleaning"
+    pacman -S --noconfirm pacman-contrib
+    pacman -Scc --noconfirm
+    paccache -r -k0
+fi
 
 EOTCHROOT
 
 umount ${MOUNTPOINT}/boot
 umount $MOUNTPOINT
-poweroff
+if [ $SHUTDOWN ]; then
+    poweroff
+fi
