@@ -11,7 +11,7 @@ USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
 #PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
-PACKAGES="base linux base-devel git" # additional packages for AUR
+PACKAGES="base linux base-devel git openssh" # additional packages for AUR
 LOCALE=en_US.UTF-8
 
 # Check if run as root
@@ -98,3 +98,4 @@ EOTCHROOT
 
 umount ${MOUNTPOINT}/boot
 umount $MOUNTPOINT
+poweroff
