@@ -11,7 +11,7 @@ USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
 PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
-PACKAGES_OTHER="base-devel git openssh docker" # additional packages for AUR
+PACKAGES_OTHER="base-devel git" # additional packages required for AUR
 LOCALE=en_US.UTF-8
 
 LINK_TIMEZONE=1;
@@ -20,11 +20,13 @@ SETUP_HOSTNAME=1;
 INSTALL_GRUB=1;
 INSTALL_SUDO=1;
 INSTALL_DHCPCD=1;
-INSTALL_AVAHI=0;
+INSTALL_AVAHI=1;
+INSTALL_OPENSSH=1;
+INSTALL_DOCKER=0;
 INSTALL_OTHER=0;
-CLEANING=0;
+CLEANING=1;
 ADD_USER=1;
-SHUTDOWN=0;
+SHUTDOWN=1;
 
 # Check if run as root
 if [ "$EUID" -ne 0 ]
@@ -120,12 +122,26 @@ if [ "$ADD_USER" -ne 0 ]; then
 fi
 
 # Disable if not needed
+if [ "$INSTALL_OPENSSH" -ne 0 ]; then
+    echo "Install OPENSSH"
+    pacman -S --noconfirm openssh
+    systemctl enable sshd
+fi
+
+# Disable if not needed
+if [ "$INSTALL_DOCKER" -ne 0 ]; then
+    echo "Install Docker"
+    pacman -S --noconfirm docker
+    if [ "$ADD_USER" -ne 0 ]; then
+        usermod -aG docker $USERNAME
+    fi
+    systemctl enable docker
+fi
+
+# Disable if not needed
 if [ "$INSTALL_OTHER" -ne 0 ]; then
     echo "Install other"
     pacman -S --noconfirm $PACKAGES_OTHER
-    usermod -aG docker $USERNAME
-    systemctl enable sshd
-    systemctl enable docker
 fi
 
 if [ "$CLEANING" -ne 0 ]; then
