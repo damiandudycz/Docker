@@ -33,8 +33,8 @@ mount ${DISK}2 $MOUNTPOINT #$LOGFILE 2>&1
 
 # Mount boot partition
 echo "Mount boot partition"
-mkdir $MOUNTPOINT/boot
-mount ${DISK}1 $MOUNTPOINT/boot #$LOGFILE 2>&1
+mkdir ${MOUNTPOINT}/boot
+mount ${DISK}1 ${MOUNTPOINT}/boot #$LOGFILE 2>&1
 
 # Install base components
 echo "Install base components"
@@ -42,16 +42,16 @@ pacstrap -K $MOUNTPOINT $PACKAGES #$LOGFILE 2>&1
 
 # Setup fstab
 echo "Setup fstab"
-genfstab -U $MOUNTPOINT >> $MOUNTPOINT/etc/fstab #$LOGFILE 2>&1
+genfstab -U $MOUNTPOINT >> ${MOUNTPOINT}/etc/fstab #$LOGFILE 2>&1
 
 # Setup hostname
 echo "Setup hostname"
-echo $HOSTNAME >> $MOUNTPOINT/etc/hostname #$LOGFILE 2>&1
+echo $HOSTNAME >> ${MOUNTPOINT}/etc/hostname #$LOGFILE 2>&1
 
 # Setup locale
 echo "Setup locale"
-sed -i "/$LOCALE/s/^#//g" $MOUNTPOINT/etc/locale.gen #$LOGFILE 2>&1
-echo "LANG=$LOCALE" >> $MOUNTPOINT/etc/locale.conf #$LOGFILE 2>&1
+sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen #$LOGFILE 2>&1
+echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf #$LOGFILE 2>&1
 
 # chroot and setup new environment
 echo "chroot and setup new environment"
@@ -96,5 +96,5 @@ paccache -r -k0
 
 EOTCHROOT
 
-umount $MOUNTPOINT/boot
+umount ${MOUNTPOINT}/boot
 umount $MOUNTPOINT
