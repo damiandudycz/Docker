@@ -17,7 +17,7 @@ fi
 
 # Ustawienie domyślnych wartości parametrów
 MOUNTPOINT="/mnt/linux-bootstrap"
-HOSTNAME="$DISTRO"
+HOSTNAME=""
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 ROOTFS="ext4"
@@ -69,6 +69,11 @@ while [ $# -gt 0 ]; do
   esac
   shift
 done
+
+if [ -z "$HOSTNAME" ]
+then
+  HOSTNAME="$DISTRO"
+fi
 
 # Wypisanie przetworzonych parametrów
 echo "DISTRO=$DISTRO"
@@ -226,9 +231,13 @@ bootstrap() {
         # Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
         STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
         # Pobieranie
-        curl -L STAGE3_URL -o "$MOUNTPOINT/stage3-amd64.tar.xz"
+        curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3-amd64.tar.xz"
         # extract the tarball to the root partition
-        tar xpvf "$MOUNTPOINT/stage3-amd64.tar.xz" -C "$MOUNTPOINT"
+        tar xpvf "$MOUNTPOINT/stage3-amd64.tar.xz" --xattrs-include='*.*' --numeric-owner -C "$MOUNTPOINT"
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "${MOUNTPOINT}/etc/portage/make.conf"
+        echo 'MAKEOPTS="-j4"' >> "${MOUNTPOINT}/etc/portage/make.conf"
+        echo 'ACCEPT_LICENSE="*"' >> "${MOUNTPOINT}/etc/portage/make.conf"
+        cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
     else
         echo "Invalid Linux distribution. Allowed options are arch or gentoo."
         exit
@@ -238,9 +247,64 @@ bootstrap() {
 # call the bootstrap function
 bootstrap
 
+
+
+
+
 # Setup hostname
 echo "$HOSTNAME" >> "${MOUNTPOINT}/etc/hostname"
 
 # Setup locale
 sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen
 echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
+
+
+
+
+# Prepare environment for CHRoot
+prepareenv() {
+    # check the validity of the --distro parameter value
+    if [ "$DISTRO" = "arch" ]
+    then
+        # placeholder for Arch-specific instructions
+        echo "Arch chroot setup to be implemented"
+    elif [ "$DISTRO" = "gentoo" ]
+    then
+        mount --types proc /proc ${MOUNTPOINT}/proc
+        mount --rbind /sys ${MOUNTPOINT}/sys
+        mount --make-rslave ${MOUNTPOINT}/sys
+        mount --rbind /dev ${MOUNTPOINT}/dev
+        mount --make-rslave ${MOUNTPOINT}/dev
+        mount --bind /run ${MOUNTPOINT}/run
+        mount --make-slave ${MOUNTPOINT}/run
+    else
+        echo "Invalid Linux distribution. Allowed options are arch or gentoo."
+        exit
+    fi
+}
+
+prepareenv
+
+
+
+
+
+exit
+# generate fstab
+makefstab() {
+    # check the validity of the --distro parameter value
+    if [ "$DISTRO" = "arch" ]
+    then
+        # placeholder for Arch-specific instructions
+        echo "Arch bootstrap to be implemented"
+    elif [ "$DISTRO" = "gentoo" ]
+    then
+        echo "${DISK}1 /boot ${BOOTFS} defaults,noatime 0 2" >> ${MOUNTPOINT}/etc/fstab
+        echo "${DISK}2 / ${ROOTFS} noatime 0 1" >> ${MOUNTPOINT}/etc/fstab
+    else
+        echo "Invalid Linux distribution. Allowed options are arch or gentoo."
+        exit
+    fi
+}
+
+makefstab
