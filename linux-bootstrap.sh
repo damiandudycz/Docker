@@ -17,10 +17,8 @@ fi
 
 # Ustawienie domyślnych wartości parametrów
 DISTRO="gentoo"
-DISK=""
 MOUNTPOINT="/mnt/linux-bootstrap"
 HOSTNAME="$DISTRO"
-TIMEZONE=""
 LOCALE="en_US.UTF-8"
 EFI="y"
 ROOTFS="ext4"
@@ -95,7 +93,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # check the validity of the --disk parameter value
-if [ "$DISK" -e 0 ] || [ ! -e "$DISK" ]
+if [ -z "$DISK" ] || [ ! -e "$DISK" ]
   then echo "Invalid device. The specified device does not exist or is not a block device."
   exit
 fi
@@ -119,8 +117,8 @@ if [ -n "$TIMEZONE" ] && [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]
 fi
 
 # check the validity of the --locale parameter value
-if [ -z "$LOCALE" ] || ! [[ "$(locale -a | grep -w "$LOCALE")" ]]
-  then echo "Invalid locale. The specified locale does not exist."
+if [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
+  echo "Invalid locale. The specified locale does not exist."
   exit
 fi
 
