@@ -129,14 +129,14 @@ if [ "$EFI" != "y" ] && [ "$EFI" != "n" ]
 fi
 
 # check if the values are valid
-if [ "$ROOT_PARTITION_TYPE" != "ext4" ] && [ "$ROOT_PARTITION_TYPE" != "btrfs" ]
+if [ "$ROOTFS" != "ext4" ] && [ "$ROOTFS" != "btrfs" ]
   then
     # show error message if the value is not valid
     echo "Error: Invalid value for the --rootfs parameter. Must be either ext4 or btrfs."
     exit
 fi
 
-if [ "$BOOT_PARTITION_TYPE" != "fat" ] && [ "$BOOT_PARTITION_TYPE" != "ext4" ]
+if [ "$BOOTFS" != "fat" ] && [ "$BOOTFS" != "ext4" ]
   then
     # show error message if the value is not valid
     echo "Error: Invalid value for the --bootfs parameter. Must be either fat or ext4."
