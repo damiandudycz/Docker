@@ -206,10 +206,10 @@ mount "${DISK}1" "$MOUNTPOINT/boot"
 # create the bootstrap function
 bootstrap() {
     # check the validity of the --distro parameter value
-    if [ "$DISTRO" == "arch" ]
+    if [ "$DISTRO" = "arch" ]
     then
         # placeholder for Arch-specific instructions
-    elif [ "$DISTRO" == "gentoo" ]
+    elif [ "$DISTRO" = "gentoo" ]
     then
         # download the latest stage3 tarball for gentoo amd64
         curl -L http://ftp.vectranet.pl/gentoo/releases/amd64/autobuilds/current-stage3-amd64-openrc/stage3-amd64-openrc-20221211T170150Z.tar.xz -o "$MOUNTPOINT/stage3-amd64.tar.xz"
