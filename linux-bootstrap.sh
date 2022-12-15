@@ -117,7 +117,7 @@ if ! [[ "$HOSTNAME" =~ ^[a-zA-Z0-9]*$ ]]
 fi
 
 # check the validity of the --timezone parameter value
-if [ -n "$TIMEZONE" ] && [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]
+if [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]
   then echo "Invalid timezone. Please specify a valid timezone from the list in /usr/share/zoneinfo."
   exit
 fi
@@ -219,7 +219,14 @@ bootstrap() {
     elif [ "$DISTRO" = "gentoo" ]
     then
         # download the latest stage3 tarball for gentoo amd64
-        curl -L http://ftp.vectranet.pl/gentoo/releases/amd64/autobuilds/current-stage3-amd64-openrc/stage3-amd64-openrc-20221211T170150Z.tar.xz -o "$MOUNTPOINT/stage3-amd64.tar.xz"
+        
+        # Pobranie tekstu z podanego URL i wyciągnięcie z niego informacji o ścieżce do pliku stage3 i jego rozmiarze
+        STAGE3_PATH_SIZE=$(curl -L https://gentoo.osuosl.org/releases/amd64/autobuilds/latest-stage3-amd64-openrc.txt | grep -v '^#')
+        STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
+        # Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
+        STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
+        # Pobieranie
+        curl -L STAGE3_URL -o "$MOUNTPOINT/stage3-amd64.tar.xz"
         # extract the tarball to the root partition
         tar xpvf "$MOUNTPOINT/stage3-amd64.tar.xz" -C "$MOUNTPOINT"
     else
@@ -230,3 +237,10 @@ bootstrap() {
 
 # call the bootstrap function
 bootstrap
+
+# Setup hostname
+echo "$HOSTNAME" >> "${MOUNTPOINT}/etc/hostname"
+
+# Setup locale
+sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen
+echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
