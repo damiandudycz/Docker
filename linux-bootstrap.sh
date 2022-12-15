@@ -84,7 +84,7 @@ echo "EFI=$EFI"
 echo "ROOTFS=$ROOTFS"
 echo "BOOTFS=$BOOTFS"
 
-exit
+
 
 # VALIDATION --------------------------------------------
 
@@ -95,7 +95,7 @@ if [ "$EUID" -ne 0 ]
 fi
 
 # check the validity of the --disk parameter value
-if [ "$EUID" -e 0 ] || [ ! -e "$DISK" ]
+if [ "$DISK" -e 0 ] || [ ! -e "$DISK" ]
   then echo "Invalid device. The specified device does not exist or is not a block device."
   exit
 fi
