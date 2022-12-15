@@ -15,18 +15,76 @@ fi
 
 # PARAMS ------------------------------------------------
 
-# retrieve the parameters
-DISTRO=${1:--distro gentoo}
-DISK=${2:--disk}
-MOUNTPOINT=${3:--mountpoint /mnt/linux-bootstrap}
-HOSTNAME=${4:--hostname $DISTRO}
-TIMEZONE=${5:--timezone}
-LOCALE=${6:--locale en_US.UTF-8}
-EFI=${7:--efi y}
-ROOTFS=${8:--rootfs ext4}
-BOOTFS=${9:--bootfs ext4}
+# Ustawienie domyślnych wartości parametrów
+DISTRO="gentoo"
+DISK=""
+MOUNTPOINT="/mnt/linux-bootstrap"
+HOSTNAME="$DISTRO"
+TIMEZONE=""
+LOCALE="en_US.UTF-8"
+EFI="y"
+ROOTFS="ext4"
+BOOTFS="ext4"
 
+# Przetwarzanie parametrów
+while [ $# -gt 0 ]; do
+  case $1 in
+    --distro)
+      DISTRO="$2"
+      shift
+      ;;
+    --disk)
+      DISK="$2"
+      shift
+      ;;
+    --mountpoint)
+      MOUNTPOINT="$2"
+      shift
+      ;;
+    --hostname)
+      HOSTNAME="$2"
+      shift
+      ;;
+    --timezone)
+      TIMEZONE="$2"
+      shift
+      ;;
+    --locale)
+      LOCALE="$2"
+      shift
+      ;;
+    --efi)
+      EFI="$2"
+      shift
+      ;;
+    --rootfs)
+      ROOTFS="$2"
+      shift
+      ;;
+    --bootfs)
+      BOOTFS="$2"
+      shift
+      ;;
+    *)
+      echo "Invalid option: $1" >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
 
+# Wypisanie przetworzonych parametrów
+echo "DISTRO=$DISTRO"
+echo "DISK=$DISK"
+echo "MOUNTPOINT=$MOUNTPOINT"
+echo "HOSTNAME=$HOSTNAME"
+echo "TIMEZONE=$TIMEZONE"
+echo "LOCALE=$LOCALE"
+echo "EFI=$EFI"
+echo "ROOTFS=$ROOTFS"
+echo "BOOTFS=$BOOTFS"
+
+exit
 
 # VALIDATION --------------------------------------------
 
