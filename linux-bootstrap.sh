@@ -147,8 +147,11 @@ fi
 
 # PREPARING DISK ----------------------------------------
 
+# wipe disk space
+dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1
+
 # format the disk using fdisk
-echo -e "o\nn\np\n1\n\n+256M\nt\nc\nn\np\n2\n\n\nw" | fdisk "$DISK"
+printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK
 
 # FORMAT PARTITIONS --------------------------------------
 
