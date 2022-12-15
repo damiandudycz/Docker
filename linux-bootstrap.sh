@@ -7,7 +7,7 @@
 # check if the --help parameter is used
 if [ "$1" == "--help" ]
   then echo "Usage instructions:
-  ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname HOSTNAME] [--timezone TIMEZONE] [--locale LOCALE] [--efi (y/n)] [--rootfs (ext4/btrfs)] [--bootfs (fat/ext4)]"
+  ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname HOSTNAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios)] [--rootfs (ext4/btrfs)] [--bootfs (fat/ext4)]"
   exit
 fi
 
@@ -16,11 +16,10 @@ fi
 # PARAMS ------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
-DISTRO="gentoo"
 MOUNTPOINT="/mnt/linux-bootstrap"
 HOSTNAME="$DISTRO"
 LOCALE="en_US.UTF-8"
-EFI="y"
+FIRMWARE="efi"
 ROOTFS="ext4"
 BOOTFS="ext4"
 
@@ -51,8 +50,8 @@ while [ $# -gt 0 ]; do
       LOCALE="$2"
       shift
       ;;
-    --efi)
-      EFI="$2"
+    --firmware)
+      FIRMWARE="$2"
       shift
       ;;
     --rootfs)
@@ -78,10 +77,10 @@ echo "MOUNTPOINT=$MOUNTPOINT"
 echo "HOSTNAME=$HOSTNAME"
 echo "TIMEZONE=$TIMEZONE"
 echo "LOCALE=$LOCALE"
-echo "EFI=$EFI"
+echo "FIRMWARE=$FIRMWARE"
 echo "ROOTFS=$ROOTFS"
 echo "BOOTFS=$BOOTFS"
-
+echo "----------------------------------------"
 
 
 # VALIDATION --------------------------------------------
@@ -91,6 +90,13 @@ if [ "$EUID" -ne 0 ]
   then echo "Root privileges are required to run this script"
   exit
 fi
+
+# check if correct distribution is provided
+if [ "$DISTRO" != "arch" ] && [ "$DISTRO" != "gentoo" ]
+  then echo "Error: Invalid value for the --distro parameter. Must be either arch or gentoo."
+  exit
+fi
+
 
 # check the validity of the --disk parameter value
 if [ -z "$DISK" ] || [ ! -e "$DISK" ]
@@ -123,8 +129,8 @@ if [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
 fi
 
 # check if the value is either y or n
-if [ "$EFI" != "y" ] && [ "$EFI" != "n" ]
-  then echo "Error: Invalid value for the --efi parameter. Must be either y or n."
+if [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ]
+  then echo "Error: Invalid value for the --firmware parameter. Must be either efi or bios."
   exit
 fi
 
@@ -209,6 +215,7 @@ bootstrap() {
     if [ "$DISTRO" = "arch" ]
     then
         # placeholder for Arch-specific instructions
+        echo "Arch bootstrap to be implemented"
     elif [ "$DISTRO" = "gentoo" ]
     then
         # download the latest stage3 tarball for gentoo amd64
