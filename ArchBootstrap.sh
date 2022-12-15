@@ -10,7 +10,7 @@ HOSTNAME=archlinux
 USERNAME=homedudycz
 PASSWORD=Apple1208
 TIMEZONE=Europe/Warsaw
-PACKAGES="base linux" # Note: For apple virtualization we might not need to install linux
+PACKAGES="base linux"
 PACKAGES_OTHER="base-devel git" # additional packages required for AUR
 LOCALE=en_US.UTF-8
 
@@ -30,8 +30,8 @@ SHUTDOWN=1;
 
 # Check if run as root
 if [ "$EUID" -ne 0 ]
-  then echo "Please run as root"
-  exit
+    then echo "Please run as root"
+    exit
 fi
 
 # Prepare Disk
