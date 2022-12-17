@@ -5,7 +5,7 @@
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
-    ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname HOSTNAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
+    ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
 fi
 
 # ---------------------------------------------------------------------------
@@ -27,7 +27,7 @@ while [ $# -gt 0 ]; do
       --distro) DISTRO="$2"; shift;;
       --disk) DISK="$2"; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
-      --hostname) HOSTNAME="$2"; shift;;
+      --hostname) NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
       --locale) LOCALE="$2"; shift;;
       --firmware) FIRMWARE="$2"; shift;;
@@ -38,8 +38,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 # By default if hosename is nil, set it to distro name.
-if [ -z "$HOSTNAME" ]; then
-    HOSTNAME="$DISTRO"
+if [ -z "$NAME" ]; then
+    NAME="$DISTRO"
 fi
 
 # ---------------------------------------------------------------------------
@@ -49,7 +49,7 @@ fi
 echo "DISTRO=$DISTRO"
 echo "DISK=$DISK"
 echo "MOUNTPOINT=$MOUNTPOINT"
-echo "HOSTNAME=$HOSTNAME"
+echo "HOSTNAME=$NAME"
 echo "TIMEZONE=$TIMEZONE"
 echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
@@ -72,7 +72,7 @@ fi
 if [ "$(ls -A "$MOUNTPOINT")" ]; then
     echo "The mountpoint directory is not empty. Please specify an empty directory as the mountpoint."; exit
 fi
-if ! [[ "$HOSTNAME" =~ ^[a-zA-Z0-9]*$ ]]; then
+if ! [[ "$NAME" =~ ^[a-zA-Z0-9]*$ ]]; then
     echo "Invalid hostname. The hostname can only contain alphanumeric characters."; exit
 fi
 if [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
@@ -166,7 +166,7 @@ bootstrap
 # CONFIGURATION -------------------------------------------------------------
 
 # Setup hostname
-echo "$HOSTNAME" >> "${MOUNTPOINT}/etc/hostname"
+echo "$NAME" >> "${MOUNTPOINT}/etc/hostname"
 # Setup locale
 sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen
 echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
@@ -203,7 +203,7 @@ runchrootinstall() {
           # placeholder for Arch-specific instructions
           echo "Arch chroot setup to be implemented"
       elif [ "$DISTRO" = "gentoo" ]; then
-          chroot $MOUNTPOINT /bin/bash -- << EOF
+          chroot $MOUNTPOINT /bin/bash -c "TIMEZONE=\"$TIMEZONE\"; LOCALE=\"$LOCALE\"" -- << EOF
           source /etc/profile
           export PS1="(chroot) ${PS1}"
           
