@@ -5,7 +5,7 @@
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
-    ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
+    ./linux-bootstrap.sh [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
 fi
 
 # ---------------------------------------------------------------------------
@@ -24,7 +24,6 @@ BOOTFS="vfat"
 # Przetwarzanie parametrów
 while [ $# -gt 0 ]; do
     case $1 in
-      --distro) DISTRO="$2"; shift;;
       --disk) DISK="$2"; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
       --hostname) NAME="$2"; shift;;
@@ -39,14 +38,13 @@ while [ $# -gt 0 ]; do
 done
 # By default if hosename is nil, set it to distro name.
 if [ -z "$NAME" ]; then
-    NAME="$DISTRO"
+    NAME="gentoo"
 fi
 
 # ---------------------------------------------------------------------------
 # PRINTING CONFIGURATION ----------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
-echo "DISTRO=$DISTRO"
 echo "DISK=$DISK"
 echo "MOUNTPOINT=$MOUNTPOINT"
 echo "HOSTNAME=$NAME"
@@ -62,9 +60,6 @@ echo "----------------------------------------"
 
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
-fi
-if [ "$DISTRO" != "arch" ] && [ "$DISTRO" != "gentoo" ]; then
-    echo "Error: Invalid value for the --distro parameter. Must be either arch or gentoo."; exit
 fi
 if [ -z "$DISK" ] || [ ! -e "$DISK" ]; then
     echo "Invalid device. The specified device does not exist or is not a block device."; exit
@@ -129,38 +124,30 @@ mount "${DISK}1" "$MOUNTPOINT/boot"
 # ---------------------------------------------------------------------------
 # BOOTSTRAPING --------------------------------------------------------------
 
-# create the bootstrap function
-bootstrap() {
-    # check the validity of the --distro parameter value
-    if [ "$DISTRO" = "arch" ]; then
-        # placeholder for Arch-specific instructions
-        echo "Arch bootstrap to be implemented"
-        elif [ "$DISTRO" = "gentoo" ]; then
-        # download the latest stage3 tarball for gentoo amd64
-          
-        # Pobranie tekstu z podanego URL i wyciągnięcie z niego informacji o ścieżce do pliku stage3 i jego rozmiarze
-        STAGE3_PATH_SIZE=$(curl -L https://gentoo.osuosl.org/releases/amd64/autobuilds/latest-stage3-amd64-openrc.txt | grep -v '^#')
-          STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
-          # Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
-          STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
-          # Pobieranie
-          curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
-          # extract the tarball to the root partition
-          tar xpvf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner -C "$MOUNTPOINT"
-          sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "${MOUNTPOINT}/etc/portage/make.conf"
-          # MAKEOPTS
-          echo 'MAKEOPTS="-j4"' >> "${MOUNTPOINT}/etc/portage/make.conf"
-          echo 'ACCEPT_LICENSE="*"' >> "${MOUNTPOINT}/etc/portage/make.conf"
-          # Gentoo ebuild repository
-          mkdir --parents "${MOUNTPOINT}/etc/portage/repos.conf"
-          cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
-          # Copy DNS info
-          cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
-      else
-          echo "Invalid Linux distribution. Allowed options are arch or gentoo."; exit
-      fi
-}
-bootstrap
+# Pobranie tekstu z podanego URL i wyciągnięcie z niego informacji o ścieżce do pliku stage3 i jego rozmiarze
+STAGE3_PATH_SIZE=$(curl -L https://gentoo.osuosl.org/releases/amd64/autobuilds/latest-stage3-amd64-openrc.txt | grep -v '^#')
+STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
+
+# Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
+STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
+
+# Pobieranie
+curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
+
+# extract the tarball to the root partition
+tar xpvf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner -C "$MOUNTPOINT"
+sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "${MOUNTPOINT}/etc/portage/make.conf"
+
+# MAKEOPTS
+echo 'MAKEOPTS="-j4"' >> "${MOUNTPOINT}/etc/portage/make.conf"
+echo 'ACCEPT_LICENSE="*"' >> "${MOUNTPOINT}/etc/portage/make.conf"
+
+# Gentoo ebuild repository
+mkdir --parents "${MOUNTPOINT}/etc/portage/repos.conf"
+cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
+
+# Copy DNS info
+cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
 
 # ---------------------------------------------------------------------------
 # CONFIGURATION -------------------------------------------------------------
@@ -174,78 +161,37 @@ echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
 # ---------------------------------------------------------------------------
 # PREPARE FOR CHROOT --------------------------------------------------------
 
-# Prepare environment for CHRoot
-prepareenv() {
-      # check the validity of the --distro parameter value
-      if [ "$DISTRO" = "arch" ]; then
-          # placeholder for Arch-specific instructions
-          echo "Arch chroot setup to be implemented"
-      elif [ "$DISTRO" = "gentoo" ]; then
-          mount --types proc /proc ${MOUNTPOINT}/proc
-          mount --rbind /sys ${MOUNTPOINT}/sys
-          mount --make-rslave ${MOUNTPOINT}/sys
-          mount --rbind /dev ${MOUNTPOINT}/dev
-          mount --make-rslave ${MOUNTPOINT}/dev
-          mount --bind /run ${MOUNTPOINT}/run
-          mount --make-slave ${MOUNTPOINT}/run
-      else
-          echo "Invalid Linux distribution. Allowed options are arch or gentoo."; exit
-      fi
-}
-prepareenv
+mount --types proc /proc ${MOUNTPOINT}/proc
+mount --rbind /sys ${MOUNTPOINT}/sys
+mount --make-rslave ${MOUNTPOINT}/sys
+mount --rbind /dev ${MOUNTPOINT}/dev
+mount --make-rslave ${MOUNTPOINT}/dev
+mount --bind /run ${MOUNTPOINT}/run
+mount --make-slave ${MOUNTPOINT}/run
 
 # ---------------------------------------------------------------------------
 # CHROOT AND SETUP ----------------------------------------------------------
 
-runchrootinstall() {
-      # check the validity of the --distro parameter value
-      if [ "$DISTRO" = "arch" ]; then
-          # placeholder for Arch-specific instructions
-          echo "Arch chroot setup to be implemented"
-      elif [ "$DISTRO" = "gentoo" ]; then
-          chroot $MOUNTPOINT /bin/bash -c "TIMEZONE=\"$TIMEZONE\"; LOCALE=\"$LOCALE\"" -- << EOF
-          source /etc/profile
-          export PS1="(chroot) ${PS1}"
-          
-          emerge-webrsync
-          emerge --sync --quiet
-                    
-          emerge app-portage/cpuid2cpuflags
-          echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
-          
-          emerge --verbose --update --deep --newuse @system
-          emerge --verbose --update --deep --newuse @world
+echo "
+    source /etc/profile
+    export PS1=\"(chroot) \${PS1}\"
 
-          echo $TIMEZONE > /etc/timezone
-          emerge --config sys-libs/timezone-data
-          
-          locale-gen
-          locale_num=$(eselect locale list | grep -i "$LOCALE" | awk '/\]/ {print $1}' | grep -oP '\[\K[^]]+')
-          eselect locale set $locale_num
-          env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
+    emerge-webrsync
+    emerge --sync --quiet
 
-EOF
-      else
-          echo "Invalid Linux distribution. Allowed options are arch or gentoo."; exit
-      fi
-}
-runchrootinstall
+    emerge app-portage/cpuid2cpuflags
+    echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
 
+    emerge --verbose --update --deep --newuse @system
+    emerge --verbose --update --deep --newuse @world
 
+    echo \$TIMEZONE > /etc/timezone
+    emerge --config sys-libs/timezone-data
 
-
-exit
-# generate fstab
-makefstab() {
-      # check the validity of the --distro parameter value
-      if [ "$DISTRO" = "arch" ]; then
-          # placeholder for Arch-specific instructions
-          echo "Arch bootstrap to be implemented"
-      elif [ "$DISTRO" = "gentoo" ]; then
-          echo "${DISK}1 /boot ${BOOTFS} defaults,noatime 0 2" >> ${MOUNTPOINT}/etc/fstab
-          echo "${DISK}2 / ${ROOTFS} noatime 0 1" >> ${MOUNTPOINT}/etc/fstab
-      else
-          echo "Invalid Linux distribution. Allowed options are arch or gentoo."; exit
-      fi
-}
-makefstab
+    locale-gen
+    locale_num=\$(eselect locale list | grep -i \"\$LOCALE\" | awk '/\\]/ {print \$1}' | grep -oP '\\[\\K[^]]+')
+    eselect locale set \$locale_num
+    env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
+" >> $MOUNTPOINT/setup.sh
+chmod +x $MOUNTPOINT/setup.sh
+chroot $MOUNTPOINT /setup.sh
