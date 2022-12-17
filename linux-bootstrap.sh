@@ -105,7 +105,7 @@ printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK
 # FORMATTING PARTITIONS ---------------------------------
 
 case $BOOTFS in
-fat) mkfs.fat "${DISK}1";;
+vfat) mkfs.vfat "${DISK}1";;
 ext4) mkfs.ext4 "${DISK}1";;
 *) echo "Invalid value for BOOTFS";;
 esac
