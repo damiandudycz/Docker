@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# HELP --------------------------------------------------
+# HELP ----------------------------------------------------------------------
 
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
@@ -8,8 +8,8 @@ if [ "$1" == "--help" ]; then
     ./linux-bootstrap.sh [--distro (arch/gentoo)] [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname HOSTNAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
 fi
 
-# -------------------------------------------------------
-# PARAMS - DEFAULTS -------------------------------------
+# ---------------------------------------------------------------------------
+# PARAMS - DEFAULTS ---------------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
 MOUNTPOINT="/mnt/linux-bootstrap"
@@ -18,8 +18,8 @@ FIRMWARE="efi"
 ROOTFS="ext4"
 BOOTFS="vfat"
 
-# -------------------------------------------------------
-# PARAMS - LOADING --------------------------------------
+# ---------------------------------------------------------------------------
+# PARAMS - LOADING ----------------------------------------------------------
 
 # Przetwarzanie parametrów
 while [ $# -gt 0 ]; do
@@ -42,8 +42,8 @@ if [ -z "$HOSTNAME" ]; then
     HOSTNAME="$DISTRO"
 fi
 
-# -------------------------------------------------------
-# PRINTING CONFIGURATION --------------------------------
+# ---------------------------------------------------------------------------
+# PRINTING CONFIGURATION ----------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
 echo "DISTRO=$DISTRO"
@@ -57,8 +57,8 @@ echo "ROOTFS=$ROOTFS"
 echo "BOOTFS=$BOOTFS"
 echo "----------------------------------------"
 
-# -------------------------------------------------------
-# VALIDATION --------------------------------------------
+# ---------------------------------------------------------------------------
+# VALIDATION ----------------------------------------------------------------
 
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
@@ -94,15 +94,15 @@ if [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to vfat."; exit
 fi
 
-# -------------------------------------------------------
-# PREPARING DISK ----------------------------------------
+# ---------------------------------------------------------------------------
+# PREPARING DISK ------------------------------------------------------------
 
 # wipe disk space and create disk layout
 dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1
 printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK
 
-# -------------------------------------------------------
-# FORMATTING PARTITIONS ---------------------------------
+# ---------------------------------------------------------------------------
+# FORMATTING PARTITIONS -----------------------------------------------------
 
 case $BOOTFS in
 vfat) mkfs.vfat "${DISK}1";;
@@ -115,8 +115,8 @@ ext4) mkfs.ext4 "${DISK}2";;
 *) echo "Invalid value for ROOTFS";;
 esac
 
-# -------------------------------------------------------
-# MOUNTING PARTITIONS -----------------------------------
+# ---------------------------------------------------------------------------
+# MOUNTING PARTITIONS -------------------------------------------------------
 
 # create the mountpoint directory if it does not exist
 if [ ! -d "$MOUNTPOINT" ]; then
@@ -126,8 +126,8 @@ mount "${DISK}2" "$MOUNTPOINT"
 mkdir "$MOUNTPOINT/boot"
 mount "${DISK}1" "$MOUNTPOINT/boot"
 
-# -------------------------------------------------------
-# BOOTSTRAPING ------------------------------------------
+# ---------------------------------------------------------------------------
+# BOOTSTRAPING --------------------------------------------------------------
 
 # create the bootstrap function
 bootstrap() {
@@ -162,8 +162,8 @@ bootstrap() {
 }
 bootstrap
 
-# -------------------------------------------------------
-# CONFIGURATION -----------------------------------------
+# ---------------------------------------------------------------------------
+# CONFIGURATION -------------------------------------------------------------
 
 # Setup hostname
 echo "$HOSTNAME" >> "${MOUNTPOINT}/etc/hostname"
@@ -171,8 +171,8 @@ echo "$HOSTNAME" >> "${MOUNTPOINT}/etc/hostname"
 sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen
 echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
 
-# -------------------------------------------------------
-# PREPARE FOR CHROOT ------------------------------------
+# ---------------------------------------------------------------------------
+# PREPARE FOR CHROOT --------------------------------------------------------
 
 # Prepare environment for CHRoot
 prepareenv() {
@@ -194,8 +194,8 @@ prepareenv() {
 }
 prepareenv
 
-# -------------------------------------------------------
-# CHROOT AND SETUP --------------------------------------
+# ---------------------------------------------------------------------------
+# CHROOT AND SETUP ----------------------------------------------------------
 
 runchrootinstall() {
       # check the validity of the --distro parameter value
@@ -224,7 +224,7 @@ runchrootinstall() {
           eselect locale set $locale_num
           env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
-          EOF
+EOF
       else
           echo "Invalid Linux distribution. Allowed options are arch or gentoo."; exit
       fi
