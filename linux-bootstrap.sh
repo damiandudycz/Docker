@@ -192,6 +192,6 @@ echo "
     locale_num=\$(eselect locale list | grep -i \"$LOCALE\" | awk '/\\]/ {print \$1}' | grep -oP '\\[\\K[^]]+')
     eselect locale set \$locale_num
     env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
-" >> $MOUNTPOINT/setup.shs
+" > $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
