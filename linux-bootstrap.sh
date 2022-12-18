@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# ---------------------------------------------------------------------------
-# HELP ----------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# HELP ------------------------------------------------------------------------
 
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
@@ -9,8 +9,8 @@ if [ "$1" == "--help" ]; then
     ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
 fi
 
-# ---------------------------------------------------------------------------
-# PARAMS - DEFAULTS ---------------------------------------------------------
+# -----------------------------------------------------------------------------
+# PARAMS - DEFAULTS -----------------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
 ROOTFS="ext4"
@@ -20,8 +20,8 @@ LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 NAME="gentoo"
 
-# ---------------------------------------------------------------------------
-# PARAMS - LOADING ----------------------------------------------------------
+# -----------------------------------------------------------------------------
+# PARAMS - LOADING ------------------------------------------------------------
 
 # Przetwarzanie parametrów
 while [ $# -gt 0 ]; do
@@ -39,8 +39,8 @@ while [ $# -gt 0 ]; do
     shift
 done
 
-# ---------------------------------------------------------------------------
-# PRINTING CONFIGURATION ----------------------------------------------------
+# -----------------------------------------------------------------------------
+# PRINTING CONFIGURATION ------------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
 echo "DEVICE=$DEVICE"
@@ -53,8 +53,8 @@ echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
 echo "----------------------------------------"
 
-# ---------------------------------------------------------------------------
-# VALIDATION ----------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# VALIDATION ------------------------------------------------------------------
 
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
@@ -87,15 +87,15 @@ if [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to vfat."; exit
 fi
 
-# ---------------------------------------------------------------------------
-# PREPARING DEVICE ----------------------------------------------------------
+# -----------------------------------------------------------------------------
+# PREPARING DEVICE ------------------------------------------------------------
 
 # wipe disk space and create disk layout
 dd if=/dev/zero of=$DEVICE bs=10M status=progress 2>&1
 printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DEVICE
 
-# ---------------------------------------------------------------------------
-# FORMATTING PARTITIONS -----------------------------------------------------
+# -----------------------------------------------------------------------------
+# FORMATTING PARTITIONS -------------------------------------------------------
 
 case $BOOTFS in
 vfat) mkfs.vfat "${DEVICE}1";;
@@ -108,8 +108,8 @@ ext4) mkfs.ext4 "${DEVICE}2";;
 *) echo "Invalid value for ROOTFS";;
 esac
 
-# ---------------------------------------------------------------------------
-# MOUNTING PARTITIONS -------------------------------------------------------
+# -----------------------------------------------------------------------------
+# MOUNTING PARTITIONS ---------------------------------------------------------
 
 # create the mountpoint directory if it does not exist
 if [ ! -d "$MOUNTPOINT" ]; then
@@ -119,8 +119,8 @@ mount "${DEVICE}2" "$MOUNTPOINT"
 mkdir "$MOUNTPOINT/boot"
 mount "${DEVICE}1" "$MOUNTPOINT/boot"
 
-# ---------------------------------------------------------------------------
-# BOOTSTRAPING --------------------------------------------------------------
+# -----------------------------------------------------------------------------
+# BOOTSTRAPING ----------------------------------------------------------------
 
 # Pobranie tekstu z podanego URL i wyciągnięcie z niego informacji o ścieżce do pliku stage3 i jego rozmiarze
 STAGE3_PATH_SIZE=$(curl -L https://gentoo.osuosl.org/releases/amd64/autobuilds/latest-stage3-amd64-openrc.txt | grep -v '^#')
@@ -147,8 +147,8 @@ cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portag
 # Copy DNS info
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
 
-# ---------------------------------------------------------------------------
-# PREPARE FOR CHROOT --------------------------------------------------------
+# -----------------------------------------------------------------------------
+# PREPARE FOR CHROOT ----------------------------------------------------------
 
 mount --types proc /proc ${MOUNTPOINT}/proc
 mount --rbind /sys ${MOUNTPOINT}/sys
@@ -158,8 +158,8 @@ mount --make-rslave ${MOUNTPOINT}/dev
 mount --bind /run ${MOUNTPOINT}/run
 mount --make-slave ${MOUNTPOINT}/run
 
-# ---------------------------------------------------------------------------
-# CHROOT AND SETUP ----------------------------------------------------------
+# -----------------------------------------------------------------------------
+# CHROOT AND SETUP ------------------------------------------------------------
 
 echo "
     source /etc/profile
