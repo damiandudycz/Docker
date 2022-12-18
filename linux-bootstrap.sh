@@ -12,11 +12,11 @@ fi
 # PARAMS - DEFAULTS ---------------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
+ROOTFS="ext4"
+BOOTFS="vfat"
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
-ROOTFS="ext4"
-BOOTFS="vfat"
 
 # ---------------------------------------------------------------------------
 # PARAMS - LOADING ----------------------------------------------------------
