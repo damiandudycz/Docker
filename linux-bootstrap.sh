@@ -82,7 +82,7 @@ if [ -z "$DEVICE" ] || [ ! -e "$DEVICE" ]; then
     echo "Invalid device. The specified device does not exist or is not a "\
     "block device."; exit
 fi
-if [ "$(ls -A "$MOUNTPOINT")" ]; then
+if [ -d "$MOUNTPOINT" ] && [ "$(ls -A "$MOUNTPOINT")" ]; then
     echo "The mountpoint directory is not empty. Please specify an empty "\
     "directory as the mountpoint."; exit
 fi
@@ -119,9 +119,7 @@ fi
 # PREPARING DEVICE ------------------------------------------------------------
 
 # wipe disk space and create disk layout
-dd if=/dev/zero of=$DEVICE bs=10M\
- count=$(blockdev --getsize64 $DEVICE | awk '{print $1/512}')\
- status=progress 2>&1
+dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
 
 FDINIT="g\n" # Create GPT table
 FDBOOT="n\n1\n\n+128M\n" # Add boot partition
