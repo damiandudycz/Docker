@@ -6,7 +6,11 @@
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
-    ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
+    ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
+    [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
+    [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)]
+    [--bootfs (vfat/ext4)]"
+    exit
 fi
 
 # -----------------------------------------------------------------------------
