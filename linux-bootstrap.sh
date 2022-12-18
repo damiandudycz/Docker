@@ -17,7 +17,7 @@ fi
 # PARAMS - DEFAULTS -----------------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
-ROOTFS="ext4"
+ROOTFS="btrfs"
 BOOTFS="vfat"
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
