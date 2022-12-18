@@ -52,7 +52,7 @@ if [ $SWAPSIZE -ge 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
-elif
+else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
 fi
@@ -132,7 +132,7 @@ if [ ! -z $SWAPDEV ]; then
     FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
     FDSWAPT="t\n2\n19\n" # Set swap partition type
     printf "${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}" | fdisk $DEVICE
-elif
+else
     FDROOT="n\n2\n\n\n" # Add root partition
     printf "${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE}" | fdisk $DEVICE
 fi
