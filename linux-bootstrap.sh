@@ -7,7 +7,7 @@
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
     ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
-    [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]
+    [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)] [--swapsize SIZE_IN_MB]
     [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
     [--firmware (efi/bios/none)]"
     exit
@@ -19,6 +19,7 @@ fi
 # Ustawienie domyślnych wartości parametrów
 ROOTFS="btrfs"
 BOOTFS="vfat"
+SWAPSIZE=0
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
@@ -33,6 +34,7 @@ while [ $# -gt 0 ]; do
       --device) DEVICE="$2"; shift;;
       --rootfs) ROOTFS="$2"; shift;;
       --bootfs) BOOTFS="$2"; shift;;
+      --swapsize) SWAPSIZE=$2; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
       --hostname) NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
@@ -46,8 +48,14 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
-BOOTDEV="${DEVICE}1"
-ROOTDEV="${DEVICE}2"
+if [ $SWAPSIZE -ge 0 ]; then
+    BOOTDEV="${DEVICE}1"
+    SWAPDEV="${DEVICE}2"
+    ROOTDEV="${DEVICE}3"
+elif
+    BOOTDEV="${DEVICE}1"
+    ROOTDEV="${DEVICE}2"
+fi
 
 # -----------------------------------------------------------------------------
 # PRINTING CONFIGURATION ------------------------------------------------------
@@ -56,6 +64,7 @@ ROOTDEV="${DEVICE}2"
 echo "DEVICE=$DEVICE"
 echo "ROOTFS=$ROOTFS"
 echo "BOOTFS=$BOOTFS"
+echo "SWAPSIZE=$SWAPSIZE"
 echo "MOUNTPOINT=$MOUNTPOINT"
 echo "HOSTNAME=$NAME"
 echo "TIMEZONE=$TIMEZONE"
@@ -116,24 +125,35 @@ status=progress 2>&1
 
 FDINIT="g\n" # Create GPT table
 FDBOOT="n\n1\n\n+128M\n" # Add boot partition
-FDROOT="n\n2\n\n\n" # Add root partition
 FDBOOTT="t\n1\n4\n" # Set boot partition type
 FDWRITE="w\n" # Write partition scheme
-printf "${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE}" | fdisk $DEVICE
+if [ ! -z $SWAPDEV ]; then
+    FDROOT="n\n3\n\n\n" # Add root partition
+    FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
+    FDSWAPT="t\n2\n19\n" # Set swap partition type
+    printf "${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}" | fdisk $DEVICE
+elif
+    FDROOT="n\n2\n\n\n" # Add root partition
+    printf "${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE}" | fdisk $DEVICE
+fi
 
 # -----------------------------------------------------------------------------
 # FORMATTING PARTITIONS -------------------------------------------------------
 
 case $BOOTFS in
-vfat) mkfs.vfat "$BOOTDEV";;
-ext4) mkfs.ext4 "$BOOTDEV";;
+vfat) mkfs.vfat -F 32 $BOOTDEV;;
+ext4) mkfs.ext4 $BOOTDEV;;
 *) echo "Invalid value for BOOTFS";;
 esac
 case $ROOTFS in
-btrfs) mkfs.btrfs "$ROOTDEV";;
-ext4) mkfs.ext4 "$ROOTDEV";;
+btrfs) mkfs.btrfs $ROOTDEV;;
+ext4) mkfs.ext4 $ROOTDEV;;
 *) echo "Invalid value for ROOTFS";;
 esac
+if [ ! -z $SWAPDEV ]; then
+    mkswap $SWAPDEV
+    swapon $SWAPDEV
+fi
 
 # -----------------------------------------------------------------------------
 # MOUNTING PARTITIONS ---------------------------------------------------------
@@ -155,7 +175,6 @@ STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/"\
 "latest-stage3-amd64-openrc.txt"
 STAGE3_PATH_SIZE=$(curl -L $STAGE3_DETAILS_URL | grep -v '^#')
 STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
-
 # Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
 STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
 
@@ -220,8 +239,7 @@ emerge --config sys-libs/timezone-data
 # Setup locale
 sed -i \"/$LOCALE/s/^#//g\" /etc/locale.gen
 locale-gen
-locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ "
-\\"{print \$1}' | grep -oP '\\[\\K[^]]+')
+locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ \"{print \$1}' | grep -oP '\\[\\K[^]]+')
 eselect locale set \$locale_num
 
 # Install kernel
@@ -232,6 +250,11 @@ emerge --depclean
 
 # FSTab
 echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab
+" > $MOUNTPOINT/setup.sh
+if [ ! -z $SWAPDEV ]; then
+    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab"
+fi
+echo "
 echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
 
 # Update env
@@ -247,6 +270,7 @@ sed -i 's/clock=.*/clock=\"local\"/' /etc/conf.d/hwclock
 echo 'GRUB_PLATFORMS=\"efi-64\"' >> /etc/portage/make.conf
 emerge sys-boot/grub
 grub-install --target=x86_64-efi --efi-directory=/boot
-" > $MOUNTPOINT/setup.sh
+grub-mkconfig -o /boot/grub/grub.cfg
+" >> $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
