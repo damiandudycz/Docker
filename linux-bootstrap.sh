@@ -255,7 +255,7 @@ emerge --depclean --quiet
 # FSTab
 echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
 if [ ! -z $SWAPDEV ]; then
-    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
+    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab" >> $MOUNTPOINT/setup.sh
 fi
 echo "echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
 
