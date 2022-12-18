@@ -98,7 +98,7 @@ if [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
     echo "Invalid locale. The specified locale does not exist."; exit
 fi
 if [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ]\
-&& [ "$FIRMWARE" != "none" ]; then
+ && [ "$FIRMWARE" != "none" ]; then
     echo "Error: Invalid value for the --firmware parameter. Must be one of: "\
     "efi, bios, none."; exit
 fi
@@ -120,8 +120,8 @@ fi
 
 # wipe disk space and create disk layout
 dd if=/dev/zero of=$DEVICE bs=10M\
-count=$(blockdev --getsize64 $DEVICE | awk '{print $1/512}')\
-status=progress 2>&1
+ count=$(blockdev --getsize64 $DEVICE | awk '{print $1/512}')\
+ status=progress 2>&1
 
 FDINIT="g\n" # Create GPT table
 FDBOOT="n\n1\n\n+128M\n" # Add boot partition
@@ -183,9 +183,9 @@ curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
 
 # extract the tarball to the root partition
 tar xpvf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
--C "$MOUNTPOINT"
+ -C "$MOUNTPOINT"
 sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
-"${MOUNTPOINT}/etc/portage/make.conf"
+ "${MOUNTPOINT}/etc/portage/make.conf"
 
 # MAKEOPTS
 echo 'MAKEOPTS="-j4"' >> "${MOUNTPOINT}/etc/portage/make.conf"
@@ -194,7 +194,7 @@ echo 'ACCEPT_LICENSE="*"' >> "${MOUNTPOINT}/etc/portage/make.conf"
 # Gentoo ebuild repository
 mkdir --parents "${MOUNTPOINT}/etc/portage/repos.conf"
 cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf"\
-"${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
+ "${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
 
 # Copy DNS info
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
