@@ -46,13 +46,13 @@ fi
 
 # Wypisanie przetworzonych parametrów
 echo "DEVICE=$DEVICE"
+echo "ROOTFS=$ROOTFS"
+echo "BOOTFS=$BOOTFS"
 echo "MOUNTPOINT=$MOUNTPOINT"
 echo "HOSTNAME=$NAME"
 echo "TIMEZONE=$TIMEZONE"
 echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
-echo "ROOTFS=$ROOTFS"
-echo "BOOTFS=$BOOTFS"
 echo "----------------------------------------"
 
 # ---------------------------------------------------------------------------
