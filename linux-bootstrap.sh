@@ -7,9 +7,9 @@
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
     ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
+    [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]
     [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
-    [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)]
-    [--bootfs (vfat/ext4)]"
+    [--firmware (efi/bios/none)]"
     exit
 fi
 
@@ -31,13 +31,13 @@ NAME="gentoo"
 while [ $# -gt 0 ]; do
     case $1 in
       --device) DEVICE="$2"; shift;;
+      --rootfs) ROOTFS="$2"; shift;;
+      --bootfs) BOOTFS="$2"; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
       --hostname) NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
       --locale) LOCALE="$2"; shift;;
       --firmware) FIRMWARE="$2"; shift;;
-      --rootfs) ROOTFS="$2"; shift;;
-      --bootfs) BOOTFS="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
