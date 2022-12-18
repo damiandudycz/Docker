@@ -18,6 +18,7 @@ BOOTFS="vfat"
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
+NAME="gentoo"
 
 # ---------------------------------------------------------------------------
 # PARAMS - LOADING ----------------------------------------------------------
@@ -37,10 +38,6 @@ while [ $# -gt 0 ]; do
     esac
     shift
 done
-# By default if hosename is nil, set it to distro name.
-if [ -z "$NAME" ]; then
-    NAME="gentoo"
-fi
 
 # ---------------------------------------------------------------------------
 # PRINTING CONFIGURATION ----------------------------------------------------
