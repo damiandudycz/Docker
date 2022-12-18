@@ -12,7 +12,7 @@ fi
 # PARAMS - DEFAULTS ---------------------------------------------------------
 
 # Ustawienie domyślnych wartości parametrów
-MOUNTPOINT="/mnt/linux-bootstrap"
+MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 ROOTFS="ext4"
