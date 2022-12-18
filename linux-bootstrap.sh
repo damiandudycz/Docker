@@ -9,7 +9,7 @@ if [ "$1" == "--help" ]; then
     ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
     [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)] [--swapsize SIZE_IN_MB]
     [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
-    [--firmware (efi/bios/none)]"
+    [--firmware (efi/bios/none)] [--profile PROFILE_REGEX]"
     exit
 fi
 
@@ -24,6 +24,7 @@ MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 NAME="gentoo"
+PROFILE="amd64/*/no-multilib"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -40,6 +41,7 @@ while [ $# -gt 0 ]; do
       --timezone) TIMEZONE="$2"; shift;;
       --locale) LOCALE="$2"; shift;;
       --firmware) FIRMWARE="$2"; shift;;
+      --profile) PROFILE="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -70,6 +72,7 @@ echo "HOSTNAME=$NAME"
 echo "TIMEZONE=$TIMEZONE"
 echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
+echo "PROFILE=$PROFILE"
 echo "----------------------------------------"
 
 # -----------------------------------------------------------------------------
@@ -223,16 +226,19 @@ emerge-webrsync
 emerge --sync --quiet
 
 # Setup CPU flags
-emerge app-portage/cpuid2cpuflags
+emerge app-portage/cpuid2cpuflags --quiet
 echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
 
+# Setup profile
+profile_num=\$(eselect profile list | grep -i \"\${$PROFILE}\" | awk '/\\]/ \"{print \$1}' | grep -oP '\\[\\K[^]]+')
+eselect profile set \$profile_num
+
 # Update packages
-emerge --verbose --update --deep --newuse @system
-emerge --verbose --update --deep --newuse @world
+emerge --verbose --update --deep --newuse --quiet @world
 
 # Setup timezone
 echo $TIMEZONE > /etc/timezone
-emerge --config sys-libs/timezone-data
+emerge --config sys-libs/timezone-data --quiet
 
 # Setup locale
 sed -i \"/$LOCALE/s/^#//g\" /etc/locale.gen
@@ -241,34 +247,42 @@ locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ \"{print \
 eselect locale set \$locale_num
 
 # Install kernel
-emerge sys-kernel/gentoo-kernel-bin
+emerge sys-kernel/gentoo-kernel-bin --quiet
 
 # Clean
-emerge --depclean
+emerge --depclean --quiet
 
 # FSTab
-echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab
-" > $MOUNTPOINT/setup.sh
+echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
 if [ ! -z $SWAPDEV ]; then
     echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab"
 fi
-echo "
-echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
+echo "echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
 
 # Update env
 env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
 
 # DHCPCD
-emerge net-misc/dhcpcd
+emerge net-misc/dhcpcd --quiet
 rc-update add dhcpcd default
 
 sed -i 's/clock=.*/clock=\"local\"/' /etc/conf.d/hwclock
 
 # GRUB
 echo 'GRUB_PLATFORMS=\"efi-64\"' >> /etc/portage/make.conf
-emerge sys-boot/grub
+emerge sys-boot/grub --quiet
 grub-install --target=x86_64-efi --efi-directory=/boot
 grub-mkconfig -o /boot/grub/grub.cfg
+
+# Tools
+emerge gentoolkit --quiet
+
+# Clean
+eclean distfiles
+eclean packagesy
 " >> $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
+
+# Cleaning files
+rm $MOUNTPOINT/stage3.tar.xz $MOUNTPOINT/setup.sh
