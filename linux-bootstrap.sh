@@ -5,7 +5,7 @@
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
     echo "Usage instructions:
-    ./linux-bootstrap.sh [--disk DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
+    ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT] [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE] [--firmware (efi/bios/none)] [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)]"; exit
 fi
 
 # ---------------------------------------------------------------------------
@@ -24,7 +24,7 @@ BOOTFS="vfat"
 # Przetwarzanie parametrów
 while [ $# -gt 0 ]; do
     case $1 in
-      --disk) DISK="$2"; shift;;
+      --device) DEVICE="$2"; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
       --hostname) NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
@@ -45,7 +45,7 @@ fi
 # PRINTING CONFIGURATION ----------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
-echo "DISK=$DISK"
+echo "DEVICE=$DEVICE"
 echo "MOUNTPOINT=$MOUNTPOINT"
 echo "HOSTNAME=$NAME"
 echo "TIMEZONE=$TIMEZONE"
@@ -61,7 +61,7 @@ echo "----------------------------------------"
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
 fi
-if [ -z "$DISK" ] || [ ! -e "$DISK" ]; then
+if [ -z "$DEVICE" ] || [ ! -e "$DEVICE" ]; then
     echo "Invalid device. The specified device does not exist or is not a block device."; exit
 fi
 if [ "$(ls -A "$MOUNTPOINT")" ]; then
@@ -90,23 +90,23 @@ if [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
 fi
 
 # ---------------------------------------------------------------------------
-# PREPARING DISK ------------------------------------------------------------
+# PREPARING DEVICE ----------------------------------------------------------
 
 # wipe disk space and create disk layout
-dd if=/dev/zero of=$DISK bs=10M status=progress 2>&1
-printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DISK
+dd if=/dev/zero of=$DEVICE bs=10M status=progress 2>&1
+printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DEVICE
 
 # ---------------------------------------------------------------------------
 # FORMATTING PARTITIONS -----------------------------------------------------
 
 case $BOOTFS in
-vfat) mkfs.vfat "${DISK}1";;
-ext4) mkfs.ext4 "${DISK}1";;
+vfat) mkfs.vfat "${DEVICE}1";;
+ext4) mkfs.ext4 "${DEVICE}1";;
 *) echo "Invalid value for BOOTFS";;
 esac
 case $ROOTFS in
-btrfs) mkfs.btrfs "${DISK}2";;
-ext4) mkfs.ext4 "${DISK}2";;
+btrfs) mkfs.btrfs "${DEVICE}2";;
+ext4) mkfs.ext4 "${DEVICE}2";;
 *) echo "Invalid value for ROOTFS";;
 esac
 
@@ -117,9 +117,9 @@ esac
 if [ ! -d "$MOUNTPOINT" ]; then
     mkdir -p "$MOUNTPOINT"
 fi
-mount "${DISK}2" "$MOUNTPOINT"
+mount "${DEVICE}2" "$MOUNTPOINT"
 mkdir "$MOUNTPOINT/boot"
-mount "${DISK}1" "$MOUNTPOINT/boot"
+mount "${DEVICE}1" "$MOUNTPOINT/boot"
 
 # ---------------------------------------------------------------------------
 # BOOTSTRAPING --------------------------------------------------------------
@@ -150,15 +150,6 @@ cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portag
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
 
 # ---------------------------------------------------------------------------
-# CONFIGURATION -------------------------------------------------------------
-
-# Setup hostname
-echo "$NAME" >> "${MOUNTPOINT}/etc/hostname"
-# Setup locale
-sed -i "/$LOCALE/s/^#//g" ${MOUNTPOINT}/etc/locale.gen
-echo "LANG=$LOCALE" >> ${MOUNTPOINT}/etc/locale.conf
-
-# ---------------------------------------------------------------------------
 # PREPARE FOR CHROOT --------------------------------------------------------
 
 mount --types proc /proc ${MOUNTPOINT}/proc
@@ -176,22 +167,56 @@ echo "
     source /etc/profile
     export PS1=\"(chroot) \${PS1}\"
 
+    # Setup hostname
+    echo \"$NAME\" >> /etc/conf.d/hostname # For OpenRC
+
+    # Update repository
     emerge-webrsync
     emerge --sync --quiet
 
+    # Setup CPU flags
     emerge app-portage/cpuid2cpuflags
     echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
 
+    # Update packages
     emerge --verbose --update --deep --newuse @system
     emerge --verbose --update --deep --newuse @world
-
+    
+    # Setup timezone
     echo $TIMEZONE > /etc/timezone
     emerge --config sys-libs/timezone-data
 
+    # Setup locale
+    sed -i \"/$LOCALE/s/^#//g\" /etc/locale.gen
     locale-gen
-    locale_num=\$(eselect locale list | grep -i \"$LOCALE\" | awk '/\\]/ {print \$1}' | grep -oP '\\[\\K[^]]+')
+    locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ {print \$1}' | grep -oP '\\[\\K[^]]+')
     eselect locale set \$locale_num
+    
+    # Install kernel
+    emerge sys-kernel/gentoo-kernel-bin
+    
+    # Clean
+    emerge --depclean
+    
+    # FSTab
+    echo \"${DEVICE}1 /boot   ${BOOTFS}   defaults,noatime    0 2\" >> /etc/fstab
+    echo \"${DEVICE}2 /   ${ROOTFS}   noatime    0 1\" >> /etc/fstab
+
+    # Update env
     env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
+    
+    # DHCPCD
+    emerge net-misc/dhcpcd
+    rc-update add dhcpcd default
+    
+    sed -i 's/clock=.*/clock=\"local\"/' /etc/conf.d/hwclock
+    
+    # GRUB
+    echo 'GRUB_PLATFORMS=\"efi-64\"' >> /etc/portage/make.conf
+    emerge sys-boot/grub
+    grub-install --target=x86_64-efi --efi-directory=/boot
+    
+    
 " > $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
