@@ -44,6 +44,12 @@ while [ $# -gt 0 ]; do
 done
 
 # -----------------------------------------------------------------------------
+# PARAMS - HELPERS ------------------------------------------------------------
+
+BOOTDEV="${DEVICE}1"
+ROOTDEV="${DEVICE}2"
+
+# -----------------------------------------------------------------------------
 # PRINTING CONFIGURATION ------------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
@@ -95,20 +101,25 @@ fi
 # PREPARING DEVICE ------------------------------------------------------------
 
 # wipe disk space and create disk layout
-dd if=/dev/zero of=$DEVICE bs=10M status=progress 2>&1
-printf "g\nn\n1\n\n+128M\nn\n2\n\n\nt\n1\n4\nw\n" | fdisk $DEVICE
+dd if=/dev/zero of=$DEVICE bs=10M count=$(blockdev --getsize64 /dev/sda | awk '{print $1/512}') status=progress 2>&1
+FDINIT="g\n" # Create GPT table
+FDBOOT="n\n1\n\n+128M\n" # Add boot partition
+FDROOT="n\n2\n\n\n" # Add root partition
+FDBOOTT="t\n1\n4\n" # Set boot partition type
+FDWRITE="w\n" # Write partition scheme
+printf "${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE}" | fdisk $DEVICE
 
 # -----------------------------------------------------------------------------
 # FORMATTING PARTITIONS -------------------------------------------------------
 
 case $BOOTFS in
-vfat) mkfs.vfat "${DEVICE}1";;
-ext4) mkfs.ext4 "${DEVICE}1";;
+vfat) mkfs.vfat "$BOOTDEV";;
+ext4) mkfs.ext4 "$BOOTDEV";;
 *) echo "Invalid value for BOOTFS";;
 esac
 case $ROOTFS in
-btrfs) mkfs.btrfs "${DEVICE}2";;
-ext4) mkfs.ext4 "${DEVICE}2";;
+btrfs) mkfs.btrfs "$ROOTDEV";;
+ext4) mkfs.ext4 "$ROOTDEV";;
 *) echo "Invalid value for ROOTFS";;
 esac
 
@@ -119,9 +130,9 @@ esac
 if [ ! -d "$MOUNTPOINT" ]; then
     mkdir -p "$MOUNTPOINT"
 fi
-mount "${DEVICE}2" "$MOUNTPOINT"
+mount "$ROOTDEV" "$MOUNTPOINT"
 mkdir "$MOUNTPOINT/boot"
-mount "${DEVICE}1" "$MOUNTPOINT/boot"
+mount "$BOOTDEV" "$MOUNTPOINT/boot"
 
 # -----------------------------------------------------------------------------
 # BOOTSTRAPING ----------------------------------------------------------------
@@ -201,8 +212,8 @@ echo "
     emerge --depclean
     
     # FSTab
-    echo \"${DEVICE}1 /boot   ${BOOTFS}   defaults,noatime    0 2\" >> /etc/fstab
-    echo \"${DEVICE}2 /   ${ROOTFS}   noatime    0 1\" >> /etc/fstab
+    echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab
+    echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
 
     # Update env
     env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
