@@ -219,7 +219,7 @@ source /etc/profile
 export PS1=\"(chroot) \${PS1}\"
 
 # Setup hostname
-echo \"$NAME\" >> /etc/conf.d/hostname # For OpenRC
+sed -i \"s/hostname=\\* hostname=.*/hostname=\\* hostname=$NAME/\" /etc/conf.d/hostname
 
 # Update repository
 emerge-webrsync
@@ -255,7 +255,7 @@ emerge --depclean --quiet
 # FSTab
 echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
 if [ ! -z $SWAPDEV ]; then
-    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab"
+    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
 fi
 echo "echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
 
