@@ -225,6 +225,9 @@ sed -i 's/hostname=\".*\"/hostname=\"$NAME\"/g' /etc/conf.d/hostname
 emerge-webrsync
 emerge --sync --quiet
 
+# Mark news as read
+eselect news read
+
 # Setup CPU flags
 emerge app-portage/cpuid2cpuflags --quiet
 echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
