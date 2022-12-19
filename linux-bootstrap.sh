@@ -50,13 +50,19 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
+FSTABBOOT="echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab"
+FSTABROOT="echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab"
+
 if [ $SWAPSIZE -ge 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
+    FSTABSWAP = "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab"
+    FSTABALL = "${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
+    FSTABALL = "${FSTABBOOT}\n${FSTABROOT}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -117,6 +123,12 @@ if [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to "\
     "vfat."; exit
 fi
+
+# -----------------------------------------------------------------------------
+# Log output ------------------------------------------------------------------
+
+touch installation-log.txt
+exec > >(tee -a installation-log.txt) 2>&1
 
 # -----------------------------------------------------------------------------
 # PREPARING DEVICE ------------------------------------------------------------
@@ -183,7 +195,7 @@ STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
 curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
 
 # extract the tarball to the root partition
-tar xpvf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
+tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
  -C "$MOUNTPOINT"
 sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
  "${MOUNTPOINT}/etc/portage/make.conf"
@@ -235,9 +247,6 @@ echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
 # Setup profile
 eselect profile set $PROFILE
 
-# Update packages
-emerge --verbose --update --deep --newuse --quiet @world
-
 # Setup timezone
 echo $TIMEZONE > /etc/timezone
 emerge --config sys-libs/timezone-data --quiet
@@ -245,21 +254,17 @@ emerge --config sys-libs/timezone-data --quiet
 # Setup locale
 sed -i \"/$LOCALE/s/^#//g\" /etc/locale.gen
 locale-gen
-locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ \"{print \$1}' | grep -oP '\\[\\K[^]]+')
+locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ \"{print \$1}\"' | grep -oP '\\[\\K[^]]+')
 eselect locale set \$locale_num
+
+# Update packages
+emerge --verbose --update --deep --newuse --quiet @world
 
 # Install kernel
 emerge sys-kernel/gentoo-kernel-bin --quiet
 
-# Clean
-emerge --depclean --quiet
-
 # FSTab
-echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab" > $MOUNTPOINT/setup.sh
-if [ ! -z $SWAPDEV ]; then
-    echo "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab" >> $MOUNTPOINT/setup.sh
-fi
-echo "echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab
+${FSTABALL}
 
 # Update env
 env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
@@ -279,10 +284,15 @@ grub-mkconfig -o /boot/grub/grub.cfg
 # Tools
 emerge gentoolkit --quiet
 
+# rebuild all
+emerge --depclean --quiet
+emerge -e --quiet @world @system # This will take long time
+
 # Clean
+emerge --depclean --quiet
 eclean distfiles
 eclean packages
-" >> $MOUNTPOINT/setup.sh
+" > $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
 
