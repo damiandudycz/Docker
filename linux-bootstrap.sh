@@ -1,16 +1,37 @@
 #!/bin/bash
 
+# This Bash script is designed to install and configure a Gentoo Linux system
+# on a specified device. The script allows users to customize various aspects
+# of the installation, including the filesystems for the root and boot
+# partitions, the size of the swap partition (if desired), the mount point for
+# the installation, the hostname, timezone, and locale for the system, and the
+# firmware type (BIOS or EFI). The script also includes an option to specify a
+# profile for the installation.
+
 # -----------------------------------------------------------------------------
 # HELP ------------------------------------------------------------------------
 
 # check if the --help parameter is used
 if [ "$1" == "--help" ]; then
+
+    echo "This Bash script is designed to install and configure a Gentoo "\
+    "Linux system on a specified device. The script allows users to "\
+    "customize various aspects of the installation, including the "\
+    "filesystems for the root and boot partitions, the size of the swap "\
+    "partition (if desired), the mount point for the installation, the "\
+    "hostname, timezone, and locale for the system, and the firmware type "\
+    "(BIOS or EFI). The script also includes an option to specify a profile "\
+    "for the installation."
+    
     echo "Usage instructions:
     ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
     [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)] [--swapsize SIZE_IN_MB]
     [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
-    [--firmware (efi/bios/none)] [--profile PROFILE_REGEX]"
+    [--firmware (efi/bios/none)] [--profile PROFILE_NAME]
+    [--makeopts MAKEOPTS] [--username USERNAME] [--password PASSWORD]"
+    
     exit
+    
 fi
 
 # -----------------------------------------------------------------------------
@@ -24,7 +45,9 @@ MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 NAME="gentoo"
-PROFILE=15 # No-Multilib
+PROFILE="no-multilib"
+MAKEOPTS="-j4"
+USERNAME="gentoo"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -42,6 +65,9 @@ while [ $# -gt 0 ]; do
       --locale) LOCALE="$2"; shift;;
       --firmware) FIRMWARE="$2"; shift;;
       --profile) PROFILE="$2"; shift;;
+      --makeopts) MAKEOPTS="$2"; shift;;
+      --username) USERNAME="$2"; shift;;
+      --password) PASSWORD="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -50,19 +76,19 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
-FSTABBOOT="echo \"$BOOTDEV /boot   $BOOTFS   defaults,noatime    0 2\" >> /etc/fstab"
-FSTABROOT="echo \"$ROOTDEV /   $ROOTFS   noatime    0 1\" >> /etc/fstab"
+FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
+FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
 
 if [ $SWAPSIZE -ge 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
-    FSTABSWAP = "echo \"$SWAPDEV none   swap   sw    0 0\" >> /etc/fstab"
-    FSTABALL = "${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
+    FSTABSWAP="echo \"$SWAPDEV none swap sw 0 0\" >> /etc/fstab"
+    FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
-    FSTABALL = "${FSTABBOOT}\n${FSTABROOT}"
+    FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
 fi
 
 # -----------------------------------------------------------------------------
@@ -79,6 +105,9 @@ echo "TIMEZONE=$TIMEZONE"
 echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
 echo "PROFILE=$PROFILE"
+echo "MAKEOPTS=$MAKEOPTS"
+echo "USERNAME=$USERNAME"
+echo "PASSWORD=$PASSWORD"
 echo "----------------------------------------"
 
 # -----------------------------------------------------------------------------
@@ -86,42 +115,35 @@ echo "----------------------------------------"
 
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
-fi
-if [ -z "$DEVICE" ] || [ ! -e "$DEVICE" ]; then
+elif [ -z "$DEVICE" ] || [ ! -e "$DEVICE" ]; then
     echo "Invalid device. The specified device does not exist or is not a "\
     "block device."; exit
-fi
-if [ -d "$MOUNTPOINT" ] && [ "$(ls -A "$MOUNTPOINT")" ]; then
+elif [ -d "$MOUNTPOINT" ] && [ "$(ls -A "$MOUNTPOINT")" ]; then
     echo "The mountpoint directory is not empty. Please specify an empty "\
     "directory as the mountpoint."; exit
-fi
-if ! [[ "$NAME" =~ ^[a-zA-Z0-9]*$ ]]; then
+elif ! [[ "$NAME" =~ ^[a-zA-Z0-9]*$ ]]; then
     echo "Invalid hostname. The hostname can only contain alphanumeric "\
     "characters."; exit
-fi
-if [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
+elif [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
     echo "Invalid timezone. Please specify a valid timezone from the list in "\
     "/usr/share/zoneinfo."; exit
-fi
-if [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
+elif [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
     echo "Invalid locale. The specified locale does not exist."; exit
-fi
-if [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ]\
+elif [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ]\
  && [ "$FIRMWARE" != "none" ]; then
     echo "Error: Invalid value for the --firmware parameter. Must be one of: "\
     "efi, bios, none."; exit
-fi
-if [ "$ROOTFS" != "ext4" ] && [ "$ROOTFS" != "btrfs" ]; then
+elif [ "$ROOTFS" != "ext4" ] && [ "$ROOTFS" != "btrfs" ]; then
       echo "Error: Invalid value for the --rootfs parameter. Must be either "\
       "ext4 or btrfs."; exit
-fi
-if [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
+elif [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
       echo "Error: Invalid value for the --bootfs parameter. Must be either "\
       "vfat or ext4."; exit
-fi
-if [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
+elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to "\
     "vfat."; exit
+elif [ -z "$PASSWORD" ]; then
+    echo "Invalid password. Please enter default user password."; exit
 fi
 
 # -----------------------------------------------------------------------------
@@ -144,10 +166,11 @@ if [ ! -z $SWAPDEV ]; then
     FDROOT="n\n3\n\n\n" # Add root partition
     FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
     FDSWAPT="t\n2\n19\n" # Set swap partition type
-    printf "${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}" | fdisk $DEVICE
+    printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}\
+     | fdisk $DEVICE
 else
     FDROOT="n\n2\n\n\n" # Add root partition
-    printf "${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE}" | fdisk $DEVICE
+    printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
 fi
 
 # -----------------------------------------------------------------------------
@@ -197,17 +220,6 @@ curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
 # extract the tarball to the root partition
 tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
  -C "$MOUNTPOINT"
-sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
- "${MOUNTPOINT}/etc/portage/make.conf"
-
-# MAKEOPTS
-echo 'MAKEOPTS="-j4"' >> "${MOUNTPOINT}/etc/portage/make.conf"
-echo 'ACCEPT_LICENSE="*"' >> "${MOUNTPOINT}/etc/portage/make.conf"
-
-# Gentoo ebuild repository
-mkdir --parents "${MOUNTPOINT}/etc/portage/repos.conf"
-cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf"\
- "${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
 
 # Copy DNS info
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
@@ -233,6 +245,18 @@ export PS1=\"(chroot) \${PS1}\"
 # Setup hostname
 sed -i 's/hostname=\".*\"/hostname=\"$NAME\"/g' /etc/conf.d/hostname
 
+sed -i 's/^COMMON_FLAGS=\"/COMMON_FLAGS=\"-march=native /'\\
+ \"/etc/portage/make.conf\"
+
+# MAKEOPTS
+echo 'MAKEOPTS=\\\"${MAKEOPTS}\\\"' >> \"/etc/portage/make.conf\"
+echo 'ACCEPT_LICENSE=\\\"*\\\"' >> \"/etc/portage/make.conf\"
+
+# Gentoo ebuild repository
+mkdir --parents \"/etc/portage/repos.conf\"
+cp \"/usr/share/portage/config/repos.conf\"\\
+ \"/etc/portage/repos.conf/gentoo.conf\"
+
 # Update repository
 emerge-webrsync
 emerge --sync --quiet
@@ -240,12 +264,13 @@ emerge --sync --quiet
 # Mark news as read
 eselect news read
 
+# Setup profile
+profile_num=\$(eselect profile list | grep \".*/${PROFILE} .*\" | awk '/\\]/ \"{print \$1}\"' | grep -oP '\\[\\K[^]]+')
+eselect profile set $profile_num
+
 # Setup CPU flags
 emerge app-portage/cpuid2cpuflags --quiet
 echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
-
-# Setup profile
-eselect profile set $PROFILE
 
 # Setup timezone
 echo $TIMEZONE > /etc/timezone
@@ -284,6 +309,9 @@ grub-mkconfig -o /boot/grub/grub.cfg
 # Tools
 emerge gentoolkit --quiet
 
+emerge app-admin/sysklogd --quiet
+rc-update add sysklogd default
+
 # rebuild all
 emerge --depclean --quiet
 emerge -e --quiet @world @system # This will take long time
@@ -292,6 +320,11 @@ emerge -e --quiet @world @system # This will take long time
 emerge --depclean --quiet
 eclean distfiles
 eclean packages
+revdep-rebuild
+
+# Add user
+useradd -m -G users,wheel -s /bin/bash $USERNAME
+printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 " > $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
