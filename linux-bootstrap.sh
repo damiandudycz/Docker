@@ -281,7 +281,7 @@ emerge gentoolkit --quiet
 
 # Clean
 eclean distfiles
-eclean packagesy
+eclean packages
 " >> $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
 chroot $MOUNTPOINT /setup.sh
