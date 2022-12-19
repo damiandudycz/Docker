@@ -24,7 +24,7 @@ MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="efi"
 NAME="gentoo"
-PROFILE="amd64/*/no-multilib"
+PROFILE=15 # No-Multilib
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -219,7 +219,7 @@ source /etc/profile
 export PS1=\"(chroot) \${PS1}\"
 
 # Setup hostname
-sed -i \"s/hostname=\\* hostname=.*/hostname=\\* hostname=$NAME/\" /etc/conf.d/hostname
+sed -i 's/hostname=\".*\"/hostname=\"$NAME\"/g' /etc/conf.d/hostname
 
 # Update repository
 emerge-webrsync
@@ -230,8 +230,7 @@ emerge app-portage/cpuid2cpuflags --quiet
 echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
 
 # Setup profile
-profile_num=\$(eselect profile list | grep -i \"\${$PROFILE}\" | awk '/\\]/ \"{print \$1}' | grep -oP '\\[\\K[^]]+')
-eselect profile set \$profile_num
+eselect profile set $PROFILE
 
 # Update packages
 emerge --verbose --update --deep --newuse --quiet @world
