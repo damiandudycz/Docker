@@ -249,8 +249,8 @@ sed -i 's/^COMMON_FLAGS=\"/COMMON_FLAGS=\"-march=native /'\\
  \"/etc/portage/make.conf\"
 
 # MAKEOPTS
-echo 'MAKEOPTS=\\\"${MAKEOPTS}\\\"' >> \"/etc/portage/make.conf\"
-echo 'ACCEPT_LICENSE=\\\"*\\\"' >> \"/etc/portage/make.conf\"
+echo 'MAKEOPTS=\"${MAKEOPTS}\"' >> \"/etc/portage/make.conf\"
+echo 'ACCEPT_LICENSE=\"*\"' >> \"/etc/portage/make.conf\"
 
 # Gentoo ebuild repository
 mkdir --parents \"/etc/portage/repos.conf\"
@@ -258,7 +258,7 @@ cp \"/usr/share/portage/config/repos.conf\"\\
  \"/etc/portage/repos.conf/gentoo.conf\"
 
 # Update repository
-emerge-webrsync
+emerge-webrsync --quiet
 emerge --sync --quiet
 
 # Mark news as read
@@ -266,7 +266,7 @@ eselect news read
 
 # Setup profile
 profile_num=\$(eselect profile list | grep \".*/${PROFILE} .*\" | awk '/\\]/ \"{print \$1}\"' | grep -oP '\\[\\K[^]]+')
-eselect profile set $profile_num
+eselect profile set \$profile_num
 
 # Setup CPU flags
 emerge app-portage/cpuid2cpuflags --quiet
