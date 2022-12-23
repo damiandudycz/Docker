@@ -75,7 +75,7 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
-if [ $SWAPSIZE -ge 0 ]; then
+if [ $SWAPSIZE -gt 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
@@ -95,19 +95,20 @@ fi
 # PRINTING CONFIGURATION ------------------------------------------------------
 
 # Wypisanie przetworzonych parametrów
-echo "DEVICE=$DEVICE"
-echo "ROOTFS=$ROOTFS"
-echo "BOOTFS=$BOOTFS"
-echo "SWAPSIZE=$SWAPSIZE"
-echo "MOUNTPOINT=$MOUNTPOINT"
-echo "HOSTNAME=$NAME"
-echo "TIMEZONE=$TIMEZONE"
-echo "LOCALE=$LOCALE"
-echo "FIRMWARE=$FIRMWARE"
-echo "PROFILE=$PROFILE"
-echo "MAKEOPTS=$MAKEOPTS"
-echo "PASSWORD=$PASSWORD"
-echo "----------------------------------------"
+echo "
+DEVICE=$DEVICE
+ROOTFS=$ROOTFS
+BOOTFS=$BOOTFS
+SWAPSIZE=$SWAPSIZE
+MOUNTPOINT=$MOUNTPOINT
+HOSTNAME=$NAME
+TIMEZONE=$TIMEZONE
+LOCALE=$LOCALE
+FIRMWARE=$FIRMWARE
+PROFILE=$PROFILE
+MAKEOPTS=$MAKEOPTS
+PASSWORD=$PASSWORD
+----------------------------------------"
 
 # -----------------------------------------------------------------------------
 # VALIDATION ------------------------------------------------------------------
@@ -204,23 +205,16 @@ mount "$BOOTDEV" "$MOUNTPOINT/boot"
 # -----------------------------------------------------------------------------
 # BOOTSTRAPING ----------------------------------------------------------------
 
-# Pobranie tekstu z podanego URL i wyciągnięcie z niego informacji o ścieżce
-# do pliku stage3 i jego rozmiarze
 STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/"\
 "latest-stage3-amd64-openrc.txt"
 STAGE3_PATH_SIZE=$(curl -L $STAGE3_DETAILS_URL | grep -v '^#')
 STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
-# Wygenerowanie pełnej ścieżki do pliku tar.xz podanego w pliku tekstowym
 STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
 
-# Pobieranie
 curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
-
-# extract the tarball to the root partition
 tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
  -C "$MOUNTPOINT"
 
-# Copy DNS info
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
 
 # -----------------------------------------------------------------------------
@@ -237,92 +231,99 @@ mount --make-slave ${MOUNTPOINT}/run
 # -----------------------------------------------------------------------------
 # CHROOT AND SETUP ------------------------------------------------------------
 
-echo "
-source /etc/profile
-export PS1=\"(chroot) \${PS1}\"
+function setup_gentoo {
+    
+    source /etc/profile
+    export PS1="(chroot) ${PS1}"
+    
+    # Setup hostname
+    sed -i 's/hostname=".*"/hostname="$NAME"/g' /etc/conf.d/hostname
 
-# Setup hostname
-sed -i 's/hostname=\".*\"/hostname=\"$NAME\"/g' /etc/conf.d/hostname
+    sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
+    "/etc/portage/make.conf"
+    
+    # MAKEOPTS
+    echo "MAKEOPTS=\"${MAKEOPTS}\"" >> "/etc/portage/make.conf"
+    echo "ACCEPT_LICENSE=\"*\"" >> "/etc/portage/make.conf"
 
-sed -i 's/^COMMON_FLAGS=\"/COMMON_FLAGS=\"-march=native /'\\
- \"/etc/portage/make.conf\"
+    # Gentoo ebuild repository
+    mkdir --parents "/etc/portage/repos.conf"
+    cp "/usr/share/portage/config/repos.conf"\
+    "/etc/portage/repos.conf/gentoo.conf"
 
-# MAKEOPTS
-echo 'MAKEOPTS=\"${MAKEOPTS}\"' >> \"/etc/portage/make.conf\"
-echo 'ACCEPT_LICENSE=\"*\"' >> \"/etc/portage/make.conf\"
+    # Update repository
+    emerge-webrsync --quiet
+    emerge --sync --quiet
 
-# Gentoo ebuild repository
-mkdir --parents \"/etc/portage/repos.conf\"
-cp \"/usr/share/portage/config/repos.conf\"\\
- \"/etc/portage/repos.conf/gentoo.conf\"
+    # Mark news as read
+    eselect news read
 
-# Update repository
-emerge-webrsync --quiet
-emerge --sync --quiet
+    # Setup profile
+    profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
+    eselect profile set $profile_num
 
-# Mark news as read
-eselect news read
+    # Setup CPU flags
+    emerge app-portage/cpuid2cpuflags --quiet
+    echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+    emerge -C app-portage/cpuid2cpuflags
 
-# Setup profile
-profile_num=\$(eselect profile list | grep \".*/${PROFILE} .*\" | awk '/\\]/ \"{print \$1}\"' | grep -oP '\\[\\K[^]]+')
-eselect profile set \$profile_num
+    # Setup timezone
+    echo $TIMEZONE > /etc/timezone
+    emerge --config sys-libs/timezone-data --quiet
 
-# Setup CPU flags
-emerge app-portage/cpuid2cpuflags --quiet
-echo \"*/* \$(cpuid2cpuflags)\" > /etc/portage/package.use/00cpu-flags
+    # Setup locale
+    sed -i "/$LOCALE/s/^#//g" /etc/locale.gen
+    locale-gen
+    locale_num=$(eselect locale list | grep -i ${LOCALE//-} | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
+    eselect locale set $locale_num
 
-# Setup timezone
-echo $TIMEZONE > /etc/timezone
-emerge --config sys-libs/timezone-data --quiet
+    # Update packages
+    emerge --verbose --update --deep --newuse --quiet @world
 
-# Setup locale
-sed -i \"/$LOCALE/s/^#//g\" /etc/locale.gen
-locale-gen
-locale_num=\$(eselect locale list | grep -i ${LOCALE//-} | awk '/\\]/ \"{print \$1}\"' | grep -oP '\\[\\K[^]]+')
-eselect locale set \$locale_num
+    # Install kernel
+    emerge sys-kernel/gentoo-kernel-bin --quiet
 
-# Update packages
-emerge --verbose --update --deep --newuse --quiet @world
+    # FSTab
+    ${FSTABALL}
 
-# Install kernel
-emerge sys-kernel/gentoo-kernel-bin --quiet
+    # Update env
+    env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
-# FSTab
-${FSTABALL}
+    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
 
-# Update env
-env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
+    # GRUB
+    echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
+    emerge sys-boot/grub --quiet
+    grub-install --target=x86_64-efi --efi-directory=/boot
+    grub-mkconfig -o /boot/grub/grub.cfg
 
-sed -i 's/clock=.*/clock=\"local\"/' /etc/conf.d/hwclock
+    # Tools
+    emerge gentoolkit --quiet
 
-# GRUB
-echo 'GRUB_PLATFORMS=\"efi-64\"' >> /etc/portage/make.conf
-emerge sys-boot/grub --quiet
-grub-install --target=x86_64-efi --efi-directory=/boot
-grub-mkconfig -o /boot/grub/grub.cfg
+    #emerge app-admin/sysklogd --quiet
+    #rc-update add sysklogd default
 
-# Tools
-emerge gentoolkit --quiet
+    # rebuild all
+    emerge --depclean --quiet
+    emerge -e --quiet @world @system # This will take long time
 
-emerge app-admin/sysklogd --quiet
-rc-update add sysklogd default
+    # Clean
+    emerge --depclean --quiet
+    eclean distfiles
+    eclean packages
+    revdep-rebuild
 
-# rebuild all
-emerge --depclean --quiet
-emerge -e --quiet @world @system # This will take long time
+    # Add user
+    adduser -m -g wheel,users $USERNAME
+    printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 
-# Clean
-emerge --depclean --quiet
-eclean distfiles
-eclean packages
-revdep-rebuild
+}
 
-# Add user
-adduser -m -g wheel $USERNAME
-printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
-" > $MOUNTPOINT/setup.sh
-chmod +x $MOUNTPOINT/setup.sh
-chroot $MOUNTPOINT /setup.sh
+export -f setup_gentoo
+chroot $MOUNTPOINT /bin/bash -c "NAME=\"$NAME\";MAKEOPTS=\"$MAKEOPTS\";\
+PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";\
+FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";PASSWORD=\"$PASSWORD\";\
+setup_gentoo"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz $MOUNTPOINT/setup.sh
