@@ -28,7 +28,7 @@ if [ "$1" == "--help" ]; then
     [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)] [--swapsize SIZE_IN_MB]
     [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
     [--firmware (efi/bios/none)] [--profile PROFILE_NAME]
-    [--makeopts MAKEOPTS] [--username USERNAME] [--password PASSWORD]"
+    [--makeopts MAKEOPTS] [--password PASSWORD]"
     
     exit
     
@@ -66,7 +66,6 @@ while [ $# -gt 0 ]; do
       --firmware) FIRMWARE="$2"; shift;;
       --profile) PROFILE="$2"; shift;;
       --makeopts) MAKEOPTS="$2"; shift;;
-      --username) USERNAME="$2"; shift;;
       --password) PASSWORD="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
@@ -76,18 +75,19 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
-FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
-FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
-
 if [ $SWAPSIZE -ge 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
+    FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
+    FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
     FSTABSWAP="echo \"$SWAPDEV none swap sw 0 0\" >> /etc/fstab"
     FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
+    FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
+    FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
     FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
 fi
 
@@ -106,7 +106,6 @@ echo "LOCALE=$LOCALE"
 echo "FIRMWARE=$FIRMWARE"
 echo "PROFILE=$PROFILE"
 echo "MAKEOPTS=$MAKEOPTS"
-echo "USERNAME=$USERNAME"
 echo "PASSWORD=$PASSWORD"
 echo "----------------------------------------"
 
@@ -294,10 +293,6 @@ ${FSTABALL}
 # Update env
 env-update && source /etc/profile && export PS1=\"(chroot) \${PS1}\"
 
-# DHCPCD
-emerge net-misc/dhcpcd --quiet
-rc-update add dhcpcd default
-
 sed -i 's/clock=.*/clock=\"local\"/' /etc/conf.d/hwclock
 
 # GRUB
@@ -323,7 +318,7 @@ eclean packages
 revdep-rebuild
 
 # Add user
-useradd -m -G users,wheel -s /bin/bash $USERNAME
+adduser -m -g wheel $USERNAME
 printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 " > $MOUNTPOINT/setup.sh
 chmod +x $MOUNTPOINT/setup.sh
