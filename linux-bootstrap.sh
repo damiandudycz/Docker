@@ -79,15 +79,15 @@ if [ $SWAPSIZE -gt 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
-    FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
-    FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
-    FSTABSWAP="echo \"$SWAPDEV none swap sw 0 0\" >> /etc/fstab"
+    FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
+    FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
+    FSTABSWAP="$SWAPDEV none swap sw 0 0"
     FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
-    FSTABBOOT="echo \"$BOOTDEV /boot $BOOTFS defaults,noatime 0 2\" >> /etc/fstab"
-    FSTABROOT="echo \"$ROOTDEV / $ROOTFS noatime 0 1\" >> /etc/fstab"
+    FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
+    FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
     FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
 fi
 
@@ -283,8 +283,11 @@ function setup_gentoo {
     # Install kernel
     emerge sys-kernel/gentoo-kernel-bin --quiet
 
+    # Tools
+    emerge gentoolkit --quiet
+
     # FSTab
-    ${FSTABALL}
+    echo "$FSTABALL" >> /etc/fstab
 
     # Update env
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
@@ -297,15 +300,12 @@ function setup_gentoo {
     grub-install --target=x86_64-efi --efi-directory=/boot
     grub-mkconfig -o /boot/grub/grub.cfg
 
-    # Tools
-    emerge gentoolkit --quiet
-
     #emerge app-admin/sysklogd --quiet
     #rc-update add sysklogd default
 
     # rebuild all
-    emerge --depclean --quiet
-    emerge -e --quiet @world @system # This will take long time
+    #emerge --depclean --quiet
+    #emerge -e --quiet @world @system # This will take long time
 
     # Clean
     emerge --depclean --quiet
@@ -314,7 +314,7 @@ function setup_gentoo {
     revdep-rebuild
 
     # Add user
-    adduser -m -g wheel,users $USERNAME
+    useradd -m -G users,wheel $USERNAME
     printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
 
 }
