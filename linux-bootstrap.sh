@@ -1,55 +1,30 @@
 #!/bin/bash
 
-# This Bash script is designed to install and configure a Gentoo Linux system
-# on a specified device. The script allows users to customize various aspects
-# of the installation, including the filesystems for the root and boot
-# partitions, the size of the swap partition (if desired), the mount point for
-# the installation, the hostname, timezone, and locale for the system, and the
-# firmware type (BIOS or EFI). The script also includes an option to specify a
-# profile for the installation.
-
 # -----------------------------------------------------------------------------
-# HELP ------------------------------------------------------------------------
+# PREDEFINIED VALUES ----------------------------------------------------------
 
-# check if the --help parameter is used
-if [ "$1" == "--help" ]; then
-
-    echo "This Bash script is designed to install and configure a Gentoo "\
-    "Linux system on a specified device. The script allows users to "\
-    "customize various aspects of the installation, including the "\
-    "filesystems for the root and boot partitions, the size of the swap "\
-    "partition (if desired), the mount point for the installation, the "\
-    "hostname, timezone, and locale for the system, and the firmware type "\
-    "(BIOS or EFI). The script also includes an option to specify a profile "\
-    "for the installation."
-    
-    echo "Usage instructions:
-    ./linux-bootstrap.sh [--device DEVICE] [--mountpoint MOUNTPOINT]
-    [--rootfs (ext4/btrfs)] [--bootfs (vfat/ext4)] [--swapsize SIZE_IN_MB]
-    [--hostname NAME] [--timezone TIMEZONE] [--locale LOCALE]
-    [--firmware (efi/bios/none)] [--profile PROFILE_NAME]
-    [--makeopts MAKEOPTS] [--password PASSWORD]"
-    
-    exit
-    
-fi
-
-# -----------------------------------------------------------------------------
-# PARAMS - DEFAULTS -----------------------------------------------------------
-
-# Ustawienie domyślnych wartości parametrów
 ROOTFS="btrfs"
 BOOTFS="vfat"
 SWAPSIZE=0
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
-FIRMWARE="efi"
+FIRMWARE="none"
 NAME="gentoo"
 PROFILE="no-multilib"
 MAKEOPTS="-j4"
 USERNAME="gentoo"
-ARCH="arm64"
+ARCH="amd64"
 PARTITIONTABLE="gpt"
+
+# check if the --help parameter is used
+if [ "$1" == "vm" ]; then
+    SWAPSIZE=2048
+    FIRMWARE="efi"
+elif [ "$1" == "rpi" ]; then
+    SWAPSIZE=4096
+    ARCH="arm64"
+    PARTITIONTABLE="dos"
+fi
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -71,6 +46,8 @@ while [ $# -gt 0 ]; do
       --password) PASSWORD="$2"; shift;;
       --partitiontable) PARTITIONTABLE="$2"; shift;;
       --arch) ARCH="$2"; shift;;
+      vm) shift;;
+      rpi) shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -170,24 +147,36 @@ dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
 
 if [ "$PARTITIONTABLE" == "gpt" ]; then
     FDINIT="g\n" # Create GPT table
-    FDBOOTABLE=""
+    FDBOOT="n\n1\n\n+128M\n" # Add boot partition
+    FDBOOTT="t\n1\n4\n" # Set boot partition type
+    FDWRITE="w\n" # Write partition scheme
+    if [ ! -z $SWAPDEV ]; then
+        FDROOT="n\n3\n\n\n" # Add root partition
+        FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
+        FDSWAPT="t\n2\n19\n" # Set swap partition type
+        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}\
+        | fdisk $DEVICE
+    else
+        FDROOT="n\n2\n\n\n" # Add root partition
+        printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
+    fi
 elif [ "$PARTITIONTABLE" == "dos" ]; then
     FDINIT="o\n" # Create MBR table
     FDBOOTABLE="a\n1\n"
-fi
+    FDBOOT="n\np\n1\n\n+128M\n" # Add boot partition
+    FDBOOTT="t\n1\n4\n" # Set boot partition type
+    FDWRITE="w\n" # Write partition scheme
+    if [ ! -z $SWAPDEV ]; then
+        FDROOT="n\np\n3\n\n\n" # Add root partition
+        FDSWAP="n\np\n2\n\n+${SWAPSIZE}M\n"
+        FDSWAPT="t\n2\n19\n" # Set swap partition type
+        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE}\
+        | fdisk $DEVICE
+    else
+        FDROOT="n\np\n2\n\n\n" # Add root partition
+        printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
+    fi
 
-FDBOOT="n\n1\n\n+128M\n" # Add boot partition
-FDBOOTT="t\n1\n4\n" # Set boot partition type
-FDWRITE="w\n" # Write partition scheme
-if [ ! -z $SWAPDEV ]; then
-    FDROOT="n\n3\n\n\n" # Add root partition
-    FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
-    FDSWAPT="t\n2\n19\n" # Set swap partition type
-    printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE}\
-     | fdisk $DEVICE
-else
-    FDROOT="n\n2\n\n\n" # Add root partition
-    printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
 fi
 
 # -----------------------------------------------------------------------------
