@@ -148,7 +148,7 @@ elif [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
 elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to "\
     "vfat."; exit
-elif [ "$PARTITIONTABLE" == "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
+elif [ "$PARTITIONTABLE" != "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
     echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
 elif [ "$ARCH" == "amd64" ] && [ "$ARCH" != "arm64" ]; then
     echo "Error: ARCH must be either amd64 or arm64"; exit
