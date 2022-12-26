@@ -48,6 +48,8 @@ NAME="gentoo"
 PROFILE="no-multilib"
 MAKEOPTS="-j4"
 USERNAME="gentoo"
+ARCH="arm64"
+PARTITIONTABLE="gpt"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -67,6 +69,8 @@ while [ $# -gt 0 ]; do
       --profile) PROFILE="$2"; shift;;
       --makeopts) MAKEOPTS="$2"; shift;;
       --password) PASSWORD="$2"; shift;;
+      --partitiontable) PARTITIONTABLE="$2"; shift;;
+      --arch) ARCH="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -108,6 +112,8 @@ FIRMWARE=$FIRMWARE
 PROFILE=$PROFILE
 MAKEOPTS=$MAKEOPTS
 PASSWORD=$PASSWORD
+PARTITIONTABLE=$PARTITIONTABLE
+ARCH=$ARCH
 ----------------------------------------"
 
 # -----------------------------------------------------------------------------
@@ -142,6 +148,10 @@ elif [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
 elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to "\
     "vfat."; exit
+elif [ "$PARTITIONTABLE" == "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
+    echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
+elif [ "$ARCH" == "amd64" ] && [ "$ARCH" != "arm64" ]; then
+    echo "Error: ARCH must be either amd64 or arm64"; exit
 elif [ -z "$PASSWORD" ]; then
     echo "Invalid password. Please enter default user password."; exit
 fi
@@ -158,7 +168,14 @@ exec > >(tee -a installation-log.txt) 2>&1
 # wipe disk space and create disk layout
 dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
 
-FDINIT="g\n" # Create GPT table
+if [ "$PARTITIONTABLE" == "gpt" ]; then
+    FDINIT="g\n" # Create GPT table
+    FDBOOTABLE=""
+elif [ "$PARTITIONTABLE" == "dos" ]; then
+    FDINIT="o\n" # Create MBR table
+    FDBOOTABLE="a\n1\n"
+fi
+
 FDBOOT="n\n1\n\n+128M\n" # Add boot partition
 FDBOOTT="t\n1\n4\n" # Set boot partition type
 FDWRITE="w\n" # Write partition scheme
@@ -166,11 +183,11 @@ if [ ! -z $SWAPDEV ]; then
     FDROOT="n\n3\n\n\n" # Add root partition
     FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
     FDSWAPT="t\n2\n19\n" # Set swap partition type
-    printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}\
+    printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE}\
      | fdisk $DEVICE
 else
     FDROOT="n\n2\n\n\n" # Add root partition
-    printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
+    printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
 fi
 
 # -----------------------------------------------------------------------------
@@ -205,11 +222,11 @@ mount "$BOOTDEV" "$MOUNTPOINT/boot"
 # -----------------------------------------------------------------------------
 # BOOTSTRAPING ----------------------------------------------------------------
 
-STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/"\
-"latest-stage3-amd64-openrc.txt"
+STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/"\
+"latest-stage3-$ARCH-openrc.txt"
 STAGE3_PATH_SIZE=$(curl -L $STAGE3_DETAILS_URL | grep -v '^#')
 STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
-STAGE3_URL="https://gentoo.osuosl.org/releases/amd64/autobuilds/$STAGE3_PATH"
+STAGE3_URL="https://gentoo.osuosl.org/releases/$$ARCH/autobuilds/$STAGE3_PATH"
 
 curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
 tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
@@ -247,9 +264,9 @@ function setup_gentoo {
     echo "ACCEPT_LICENSE=\"*\"" >> "/etc/portage/make.conf"
 
     # Gentoo ebuild repository
-    mkdir --parents "/etc/portage/repos.conf"
-    cp "/usr/share/portage/config/repos.conf"\
-    "/etc/portage/repos.conf/gentoo.conf"
+    #mkdir --parents "/etc/portage/repos.conf"
+    #cp "/usr/share/portage/config/repos.conf"\
+    #"/etc/portage/repos.conf/gentoo.conf"
 
     # Update repository
     emerge-webrsync --quiet
@@ -292,13 +309,13 @@ function setup_gentoo {
     # Update env
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
-    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
+    #sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
 
     # GRUB
-    echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
-    emerge sys-boot/grub --quiet
-    grub-install --target=x86_64-efi --efi-directory=/boot
-    grub-mkconfig -o /boot/grub/grub.cfg
+    #echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
+    #emerge sys-boot/grub --quiet
+    #grub-install --target=x86_64-efi --efi-directory=/boot
+    #grub-mkconfig -o /boot/grub/grub.cfg
 
     #emerge app-admin/sysklogd --quiet
     #rc-update add sysklogd default
