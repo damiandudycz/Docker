@@ -9,22 +9,13 @@ SWAPSIZE=0
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="none"
-NAME="gentoo"
+HOST_NAME="gentoo"
 PROFILE="no-multilib"
 MAKEOPTS="-j4"
 USERNAME="gentoo"
 ARCH="amd64"
 PARTITIONTABLE="gpt"
-
-# check if the --help parameter is used
-if [ "$1" == "vm" ]; then
-    SWAPSIZE=2048
-    FIRMWARE="efi"
-elif [ "$1" == "rpi" ]; then
-    SWAPSIZE=4096
-    ARCH="arm64"
-    PARTITIONTABLE="dos"
-fi
+ZERODISK="yes"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -33,11 +24,12 @@ fi
 while [ $# -gt 0 ]; do
     case $1 in
       --device) DEVICE="$2"; shift;;
+      --guestdevice) GUESTDEVICE="$2"; shift;;
       --rootfs) ROOTFS="$2"; shift;;
       --bootfs) BOOTFS="$2"; shift;;
       --swapsize) SWAPSIZE=$2; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
-      --hostname) NAME="$2"; shift;;
+      --hostname) HOST_NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
       --locale) LOCALE="$2"; shift;;
       --firmware) FIRMWARE="$2"; shift;;
@@ -46,8 +38,7 @@ while [ $# -gt 0 ]; do
       --password) PASSWORD="$2"; shift;;
       --partitiontable) PARTITIONTABLE="$2"; shift;;
       --arch) ARCH="$2"; shift;;
-      vm) shift;;
-      rpi) shift;;
+      --zerodisk) ZERODISK="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -56,17 +47,21 @@ done
 # -----------------------------------------------------------------------------
 # PARAMS - HELPERS ------------------------------------------------------------
 
+if [ -z $GUESTDEVICE ]; then
+    GUESTDEVICE=$DEVICE
+fi
+
 if [ $SWAPSIZE -gt 0 ]; then
-    BOOTDEV="${DEVICE}1"
-    SWAPDEV="${DEVICE}2"
-    ROOTDEV="${DEVICE}3"
+    BOOTDEV="${GUESTDEVICE}1"
+    SWAPDEV="${GUESTDEVICE}2"
+    ROOTDEV="${GUESTDEVICE}3"
     FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
     FSTABSWAP="$SWAPDEV none swap sw 0 0"
     FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
-    BOOTDEV="${DEVICE}1"
-    ROOTDEV="${DEVICE}2"
+    BOOTDEV="${GUESTDEVICE}1"
+    ROOTDEV="${GUESTDEVICE}2"
     FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
     FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
@@ -77,20 +72,22 @@ fi
 
 # Wypisanie przetworzonych parametrów
 echo "
-DEVICE=$DEVICE
-ROOTFS=$ROOTFS
-BOOTFS=$BOOTFS
-SWAPSIZE=$SWAPSIZE
-MOUNTPOINT=$MOUNTPOINT
-HOSTNAME=$NAME
+ARCH=$ARCH
+PROFILE=$PROFILE
+MAKEOPTS=$MAKEOPTS
+HOSTNAME=$HOST_NAME
 TIMEZONE=$TIMEZONE
 LOCALE=$LOCALE
 FIRMWARE=$FIRMWARE
-PROFILE=$PROFILE
-MAKEOPTS=$MAKEOPTS
 PASSWORD=$PASSWORD
+DEVICE=$DEVICE
+GUESTDEVICE=$GUESTDEVICE
+ROOTFS=$ROOTFS
+BOOTFS=$BOOTFS
+SWAPSIZE=$SWAPSIZE
 PARTITIONTABLE=$PARTITIONTABLE
-ARCH=$ARCH
+ZERODISK=$ZERODISK
+MOUNTPOINT=$MOUNTPOINT
 ----------------------------------------"
 
 # -----------------------------------------------------------------------------
@@ -143,7 +140,9 @@ exec > >(tee -a installation-log.txt) 2>&1
 # PREPARING DEVICE ------------------------------------------------------------
 
 # wipe disk space and create disk layout
-dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
+if [ "$ZERODISK" == "yes" ]; then
+    dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
+fi
 
 if [ "$PARTITIONTABLE" == "gpt" ]; then
     FDINIT="g\n" # Create GPT table
@@ -176,7 +175,6 @@ elif [ "$PARTITIONTABLE" == "dos" ]; then
         FDROOT="n\np\n2\n\n\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     fi
-
 fi
 
 # -----------------------------------------------------------------------------
@@ -214,8 +212,8 @@ mount "$BOOTDEV" "$MOUNTPOINT/boot"
 STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/"\
 "latest-stage3-$ARCH-openrc.txt"
 STAGE3_PATH_SIZE=$(curl -L $STAGE3_DETAILS_URL | grep -v '^#')
-STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f 1)
-STAGE3_URL="https://gentoo.osuosl.org/releases/$$ARCH/autobuilds/$STAGE3_PATH"
+STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f -1)
+STAGE3_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/$STAGE3_PATH"
 
 curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
 tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
@@ -243,19 +241,24 @@ function setup_gentoo {
     export PS1="(chroot) ${PS1}"
     
     # Setup hostname
-    sed -i 's/hostname=".*"/hostname="$NAME"/g' /etc/conf.d/hostname
+    sed -i 's/hostname=".*"/hostname="$HOST_NAME"/g' /etc/conf.d/hostname
 
-    sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
-    "/etc/portage/make.conf"
+    if [ $ARCH == "amd64" ]; then
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
+         "/etc/portage/make.conf"
+    elif [ $ARCH == "arm64" ]; then
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 /'\ # For RPI 4b
+         "/etc/portage/make.conf"
+    fi
     
     # MAKEOPTS
     echo "MAKEOPTS=\"${MAKEOPTS}\"" >> "/etc/portage/make.conf"
     echo "ACCEPT_LICENSE=\"*\"" >> "/etc/portage/make.conf"
 
     # Gentoo ebuild repository
-    #mkdir --parents "/etc/portage/repos.conf"
-    #cp "/usr/share/portage/config/repos.conf"\
-    #"/etc/portage/repos.conf/gentoo.conf"
+    mkdir --parents "/etc/portage/repos.conf"
+    cp "/usr/share/portage/config/repos.conf"\
+    "/etc/portage/repos.conf/gentoo.conf"
 
     # Update repository
     emerge-webrsync --quiet
@@ -268,10 +271,10 @@ function setup_gentoo {
     profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect profile set $profile_num
 
-    # Setup CPU flags
-    emerge app-portage/cpuid2cpuflags --quiet
-    echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
-    emerge -C app-portage/cpuid2cpuflags
+    # Setup CPU flags // Finish later
+    #emerge app-portage/cpuid2cpuflags --quiet
+    #echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+    #emerge -C app-portage/cpuid2cpuflags
 
     # Setup timezone
     echo $TIMEZONE > /etc/timezone
@@ -283,14 +286,14 @@ function setup_gentoo {
     locale_num=$(eselect locale list | grep -i ${LOCALE//-} | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect locale set $locale_num
 
-    # Update packages
-    emerge --verbose --update --deep --newuse --quiet @world
+    # Update packages // Finish later
+    #emerge --verbose --update --deep --newuse --quiet @world
 
-    # Install kernel
-    emerge sys-kernel/gentoo-kernel-bin --quiet
+    # Install kernel // Finish later
+    #emerge sys-kernel/gentoo-kernel-bin --quiet
 
     # Tools
-    emerge gentoolkit --quiet
+    #emerge gentoolkit --quiet
 
     # FSTab
     echo "$FSTABALL" >> /etc/fstab
@@ -327,7 +330,7 @@ function setup_gentoo {
 
 export -f setup_gentoo
 chroot $MOUNTPOINT /bin/bash -c "NAME=\"$NAME\";MAKEOPTS=\"$MAKEOPTS\";\
-PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";\
+PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";\
 FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";PASSWORD=\"$PASSWORD\";\
 setup_gentoo"
 
