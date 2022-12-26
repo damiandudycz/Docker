@@ -50,20 +50,19 @@ done
 if [ -z $GUESTDEVICE ]; then
     GUESTDEVICE=$DEVICE
 fi
-
 if [ $SWAPSIZE -gt 0 ]; then
-    BOOTDEV="${GUESTDEVICE}1"
-    SWAPDEV="${GUESTDEVICE}2"
-    ROOTDEV="${GUESTDEVICE}3"
-    FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
-    FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
-    FSTABSWAP="$SWAPDEV none swap sw 0 0"
+    BOOTDEV="${DEVICE}1"
+    SWAPDEV="${DEVICE}2"
+    ROOTDEV="${DEVICE}3"
+    FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
+    FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
+    FSTABSWAP="${GUESTDEVICE}2 none swap sw 0 0"
     FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
-    BOOTDEV="${GUESTDEVICE}1"
-    ROOTDEV="${GUESTDEVICE}2"
-    FSTABBOOT="$BOOTDEV /boot $BOOTFS defaults,noatime 0 2"
-    FSTABROOT="$ROOTDEV / $ROOTFS noatime 0 1"
+    BOOTDEV="${DEVICE}1"
+    ROOTDEV="${DEVICE}2"
+    FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
+    FSTABROOT="${GUESTDEVICE}2 / $ROOTFS noatime 0 1"
     FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
 fi
 
