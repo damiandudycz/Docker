@@ -317,7 +317,7 @@ function setup_gentoo {
         #emerge sys-kernel/gentoo-kernel-bin --quiet
     
     elif [ $ARCH == "arm64" ]; then
-        emerge --quiet sys-boot/raspberrypi-firmware
+        emerge --quiet sys-boot/raspberrypi-firmware sys-boot/raspberrypi-image
         sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
     fi
 
@@ -335,13 +335,29 @@ function setup_gentoo {
     revdep-rebuild
 
     # Add user
-    useradd -m -G users,wheel $USERNAME
-    printf "$PASSWORD\n$PASSWORD\n" | passwd $USERNAME
+    #useradd -m -G users,wheel $USERNAME
+    #printf "$PASSWORD\n$PASSWORD\n" | passwd# $USERNAME
+    
+    ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
+    rc-update add net.eth0 boot
+    
+    rc-update add swclock boot
+    rc-update del hwclock boot
+    
+    emerge --quiet ntp
+    rc-update add ntp-client default
+    
+    emerge --quiet sys-power/cpupower
+    rc-update add cpupower default
+    
+    #emerge -av sys-apps/rng-tools
+    #modprobe bcm2708-rng
 
+    sed -i 's/^root:.*/root::::::::/' /mnt/gentoo/etc/shadow
 }
 
 export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "NAME=\"$NAME\";MAKEOPTS=\"$MAKEOPTS\";\
+chroot $MOUNTPOINT /bin/bash -c "HOST_NAME=\"$HOST_NAME\";MAKEOPTS=\"$MAKEOPTS\";\
 PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";\
 FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";PASSWORD=\"$PASSWORD\";\
 setup_gentoo"
