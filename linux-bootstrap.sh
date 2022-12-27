@@ -246,7 +246,7 @@ function setup_gentoo {
         sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
          "/etc/portage/make.conf"
     elif [ $ARCH == "arm64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 /'\ # For RPI 4b
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 /'\
          "/etc/portage/make.conf"
     fi
     
@@ -270,11 +270,6 @@ function setup_gentoo {
     profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect profile set $profile_num
 
-    # Setup CPU flags // Finish later
-    #emerge app-portage/cpuid2cpuflags --quiet
-    #echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
-    #emerge -C app-portage/cpuid2cpuflags
-
     # Setup timezone
     echo $TIMEZONE > /etc/timezone
     emerge --config sys-libs/timezone-data --quiet
@@ -285,22 +280,27 @@ function setup_gentoo {
     locale_num=$(eselect locale list | grep -i ${LOCALE//-} | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect locale set $locale_num
 
-    # Update packages // Finish later
-    #emerge --verbose --update --deep --newuse --quiet @world
-
-    # Install kernel // Finish later
-    #emerge sys-kernel/gentoo-kernel-bin --quiet
-
-    # Tools
-    #emerge gentoolkit --quiet
-
     # FSTab
     echo "$FSTABALL" >> /etc/fstab
 
     # Update env
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
-    #sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
+    # Tools
+    emerge gentoolkit --quiet
+
+    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
+
+    # Setup CPU flags // Finish later
+    #emerge app-portage/cpuid2cpuflags --quiet
+    #echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+    #emerge -C app-portage/cpuid2cpuflags
+
+    # Update packages // Finish later
+    #emerge --verbose --update --deep --newuse --quiet @world
+
+    # Install kernel // Finish later
+    #emerge sys-kernel/gentoo-kernel-bin --quiet
 
     # GRUB
     #echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
@@ -334,4 +334,4 @@ FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";PASSWORD=\"$PASSWORD\";\
 setup_gentoo"
 
 # Cleaning files
-rm $MOUNTPOINT/stage3.tar.xz $MOUNTPOINT/setup.sh
+rm $MOUNTPOINT/stage3.tar.xz
