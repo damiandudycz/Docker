@@ -5,7 +5,7 @@
 
 ROOTFS="btrfs"
 BOOTFS="vfat"
-SWAPSIZE=0
+SWAPSIZE=4096
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 FIRMWARE="none"
@@ -35,7 +35,6 @@ while [ $# -gt 0 ]; do
       --firmware) FIRMWARE="$2"; shift;;
       --profile) PROFILE="$2"; shift;;
       --makeopts) MAKEOPTS="$2"; shift;;
-      --password) PASSWORD="$2"; shift;;
       --partitiontable) PARTITIONTABLE="$2"; shift;;
       --arch) ARCH="$2"; shift;;
       --zerodisk) ZERODISK="$2"; shift;;
@@ -85,7 +84,6 @@ HOSTNAME=$HOST_NAME
 TIMEZONE=$TIMEZONE
 LOCALE=$LOCALE
 FIRMWARE=$FIRMWARE
-PASSWORD=$PASSWORD
 DEVICE=$DEVICE
 GUESTDEVICE=$GUESTDEVICE
 ROOTFS=$ROOTFS
@@ -132,8 +130,6 @@ elif [ "$PARTITIONTABLE" != "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
     echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
 elif [ "$ARCH" == "amd64" ] && [ "$ARCH" != "arm64" ]; then
     echo "Error: ARCH must be either amd64 or arm64"; exit
-elif [ -z "$PASSWORD" ]; then
-    echo "Invalid password. Please enter default user password."; exit
 fi
 
 # -----------------------------------------------------------------------------
@@ -314,10 +310,9 @@ function setup_gentoo {
         grub-mkconfig -o /boot/grub/grub.cfg
         
         # Install kernel // Finish later
-        #emerge sys-kernel/gentoo-kernel-bin --quiet
-    
+        emerge sys-kernel/gentoo-kernel-bin --quiet
     elif [ $ARCH == "arm64" ]; then
-        emerge --quiet sys-boot/raspberrypi-firmware sys-boot/raspberrypi-image
+        emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
         sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
     fi
 
@@ -336,7 +331,11 @@ function setup_gentoo {
 
     # Add user
     #useradd -m -G users,wheel $USERNAME
-    #printf "$PASSWORD\n$PASSWORD\n" | passwd# $USERNAME
+    
+    # Remove password
+    sed -i 's/^root:.*/root::::::::/' /mnt/gentoo/etc/shadow
+    
+    # RPi
     
     ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
     rc-update add net.eth0 boot
@@ -352,14 +351,13 @@ function setup_gentoo {
     
     #emerge -av sys-apps/rng-tools
     #modprobe bcm2708-rng
-
-    sed -i 's/^root:.*/root::::::::/' /mnt/gentoo/etc/shadow
+    
 }
 
 export -f setup_gentoo
 chroot $MOUNTPOINT /bin/bash -c "HOST_NAME=\"$HOST_NAME\";MAKEOPTS=\"$MAKEOPTS\";\
 PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";\
-FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";PASSWORD=\"$PASSWORD\";\
+FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";\
 setup_gentoo"
 
 # Cleaning files
