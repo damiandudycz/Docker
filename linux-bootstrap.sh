@@ -246,7 +246,7 @@ function setup_gentoo {
         sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
          "/etc/portage/make.conf"
     elif [ $ARCH == "arm64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 /'\
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 -ftree-vectorize -fomit-frame-pointer/'\
          "/etc/portage/make.conf"
     fi
     
