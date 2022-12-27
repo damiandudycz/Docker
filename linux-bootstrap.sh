@@ -243,7 +243,7 @@ function setup_gentoo {
     export PS1="(chroot) ${PS1}"
     
     # Setup hostname
-    sed -i 's/hostname=".*"/hostname="$HOST_NAME"/g' /etc/conf.d/hostname
+    sed -i "s/hostname=\".*\"/hostname=\"$HOST_NAME\"/g" /etc/conf.d/hostname
 
     if [ $ARCH == "amd64" ]; then
         sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
@@ -333,7 +333,7 @@ function setup_gentoo {
     #useradd -m -G users,wheel $USERNAME
     
     # Remove password
-    sed -i 's/^root:.*/root::::::::/' /mnt/gentoo/etc/shadow
+    sed -i 's/^root:.*/root::::::::/' /etc/shadow
     
     # RPi
     
@@ -343,11 +343,11 @@ function setup_gentoo {
     rc-update add swclock boot
     rc-update del hwclock boot
     
-    emerge --quiet ntp
-    rc-update add ntp-client default
+    #emerge --quiet ntp
+    #rc-update add ntp-client default
     
-    emerge --quiet sys-power/cpupower
-    rc-update add cpupower default
+    #emerge --quiet sys-power/cpupower
+    #rc-update add cpupower default
     
     #emerge -av sys-apps/rng-tools
     #modprobe bcm2708-rng
