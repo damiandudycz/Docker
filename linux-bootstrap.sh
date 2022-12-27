@@ -302,11 +302,16 @@ function setup_gentoo {
     # Install kernel // Finish later
     #emerge sys-kernel/gentoo-kernel-bin --quiet
 
-    # GRUB
-    #echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
-    #emerge sys-boot/grub --quiet
-    #grub-install --target=x86_64-efi --efi-directory=/boot
-    #grub-mkconfig -o /boot/grub/grub.cfg
+    if [ $ARCH == "amd64" ]; then
+        # GRUB
+        echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
+        emerge sys-boot/grub --quiet
+        grub-install --target=x86_64-efi --efi-directory=/boot
+        grub-mkconfig -o /boot/grub/grub.cfg
+    elif [ $ARCH == "arm64" ]; then
+        emerge --quiet sys-boot/raspberrypi-firmware
+        sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
+    fi
 
     #emerge app-admin/sysklogd --quiet
     #rc-update add sysklogd default
