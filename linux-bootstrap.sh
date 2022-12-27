@@ -128,7 +128,7 @@ elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     "vfat."; exit
 elif [ "$PARTITIONTABLE" != "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
     echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
-elif [ "$ARCH" == "amd64" ] && [ "$ARCH" != "arm64" ]; then
+elif [ "$ARCH" != "amd64" ] && [ "$ARCH" != "arm64" ]; then
     echo "Error: ARCH must be either amd64 or arm64"; exit
 fi
 
@@ -303,14 +303,14 @@ function setup_gentoo {
     #emerge --verbose --update --deep --newuse --quiet @world
 
     if [ $ARCH == "amd64" ]; then
+        # Install kernel // Finish later
+        emerge sys-kernel/gentoo-kernel-bin --quiet
+
         # GRUB
         echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
         emerge sys-boot/grub --quiet
         grub-install --target=x86_64-efi --efi-directory=/boot
         grub-mkconfig -o /boot/grub/grub.cfg
-        
-        # Install kernel // Finish later
-        emerge sys-kernel/gentoo-kernel-bin --quiet
     elif [ $ARCH == "arm64" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
         sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
@@ -329,35 +329,33 @@ function setup_gentoo {
     eclean packages
     revdep-rebuild
 
-    # Add user
-    #useradd -m -G users,wheel $USERNAME
-    
     # Remove password
     sed -i 's/^root:.*/root::::::::/' /etc/shadow
     
     # RPi
-    
-    ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
-    rc-update add net.eth0 boot
-    
-    rc-update add swclock boot
-    rc-update del hwclock boot
-    
-    #emerge --quiet ntp
-    #rc-update add ntp-client default
-    
-    #emerge --quiet sys-power/cpupower
-    #rc-update add cpupower default
-    
-    #emerge -av sys-apps/rng-tools
-    #modprobe bcm2708-rng
-    
+    if [ $ARCH == "arm64" ]; then
+        ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
+        rc-update add net.eth0 boot
+        
+        rc-update add swclock boot
+        rc-update del hwclock boot
+        
+        #emerge --quiet ntp
+        #rc-update add ntp-client default
+        
+        #emerge --quiet sys-power/cpupower
+        #rc-update add cpupower default
+        
+        #emerge -av sys-apps/rng-tools
+        #modprobe bcm2708-rng
+    fi
+
 }
 
 export -f setup_gentoo
 chroot $MOUNTPOINT /bin/bash -c "HOST_NAME=\"$HOST_NAME\";MAKEOPTS=\"$MAKEOPTS\";\
 PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";\
-FSTABALL=\"$FSTABALL\";USERNAME=\"$USERNAME\";\
+FSTABALL=\"$FSTABALL\";\
 setup_gentoo"
 
 # Cleaning files
