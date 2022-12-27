@@ -12,7 +12,6 @@ FIRMWARE="none"
 HOST_NAME="gentoo"
 PROFILE="no-multilib"
 MAKEOPTS="-j4"
-USERNAME="gentoo"
 ARCH="amd64"
 PARTITIONTABLE="gpt"
 ZERODISK="yes"
@@ -54,8 +53,8 @@ if [ $SWAPSIZE -gt 0 ]; then
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
-    FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
     FSTABSWAP="${GUESTDEVICE}2 none swap sw 0 0"
+    FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
     FSTABALL="
 ${FSTABBOOT}
 ${FSTABSWAP}
@@ -246,10 +245,9 @@ function setup_gentoo {
     sed -i "s/hostname=\".*\"/hostname=\"$HOST_NAME\"/g" /etc/conf.d/hostname
 
     if [ $ARCH == "amd64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /'\
-         "/etc/portage/make.conf"
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "/etc/portage/make.conf"
     elif [ $ARCH == "arm64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 -ftree-vectorize -fomit-frame-pointer/'\
+        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 -ftree-vectorize -fomit-frame-pointer /'\
          "/etc/portage/make.conf"
     fi
     
@@ -259,8 +257,7 @@ function setup_gentoo {
 
     # Gentoo ebuild repository
     mkdir --parents "/etc/portage/repos.conf"
-    cp "/usr/share/portage/config/repos.conf"\
-    "/etc/portage/repos.conf/gentoo.conf"
+    cp "/usr/share/portage/config/repos.conf" "/etc/portage/repos.conf/gentoo.conf"
 
     # Update repository
     emerge-webrsync --quiet
@@ -286,13 +283,13 @@ function setup_gentoo {
     # FSTab
     echo "$FSTABALL" >> /etc/fstab
 
+    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
+
     # Update env
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
     # Tools
     emerge gentoolkit --quiet
-
-    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
 
     # Setup CPU flags // Finish later
     #emerge app-portage/cpuid2cpuflags --quiet
