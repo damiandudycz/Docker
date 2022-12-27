@@ -57,13 +57,20 @@ if [ $SWAPSIZE -gt 0 ]; then
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
     FSTABSWAP="${GUESTDEVICE}2 none swap sw 0 0"
-    FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
+    FSTABALL="
+${FSTABBOOT}
+${FSTABSWAP}
+${FSTABROOT}
+"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="${GUESTDEVICE}2 / $ROOTFS noatime 0 1"
-    FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
+    FSTABALL="
+${FSTABBOOT}
+${FSTABROOT}
+"
 fi
 
 # -----------------------------------------------------------------------------
@@ -299,15 +306,16 @@ function setup_gentoo {
     # Update packages // Finish later
     #emerge --verbose --update --deep --newuse --quiet @world
 
-    # Install kernel // Finish later
-    #emerge sys-kernel/gentoo-kernel-bin --quiet
-
     if [ $ARCH == "amd64" ]; then
         # GRUB
         echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
         emerge sys-boot/grub --quiet
         grub-install --target=x86_64-efi --efi-directory=/boot
         grub-mkconfig -o /boot/grub/grub.cfg
+        
+        # Install kernel // Finish later
+        #emerge sys-kernel/gentoo-kernel-bin --quiet
+    
     elif [ $ARCH == "arm64" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware
         sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
