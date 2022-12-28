@@ -337,10 +337,12 @@ function setup_gentoo {
         rc-update add swclock boot
         rc-update del hwclock boot
         
-        #emerge --quiet ntp
+        emerge --quiet dhcpcd
+        
+        emerge --quiet ntp -uf
         #rc-update add ntp-client default
         
-        #emerge --quiet sys-power/cpupower
+        emerge --quiet sys-power/cpupower -uf
         #rc-update add cpupower default
         
         #emerge -av sys-apps/rng-tools
