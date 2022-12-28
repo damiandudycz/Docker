@@ -79,6 +79,7 @@ fi
 
 # Wypisanie przetworzonych parametrów
 echo "
+----------------------------------------
 ARCH=$ARCH
 PROFILE=$PROFILE
 MAKEOPTS=$MAKEOPTS
