@@ -112,7 +112,7 @@ elif [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
     echo "Invalid timezone. Please specify a valid timezone from the list in /usr/share/zoneinfo."; exit
 elif [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
     echo "Invalid locale. The specified locale does not exist."; exit
-elif [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ] && [ "$FIRMWARE" != "none" ]; then
+elif [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ] && [ "$FIRMWARE" != "rpi" ] && [ "$FIRMWARE" != "none" ]; then
     echo "Error: Invalid value for the --firmware parameter. Must be one of: efi, bios, none."; exit
 elif [ "$ROOTFS" != "ext4" ] && [ "$ROOTFS" != "btrfs" ]; then
       echo "Error: Invalid value for the --rootfs parameter. Must be either ext4 or btrfs."; exit
@@ -120,6 +120,12 @@ elif [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
       echo "Error: Invalid value for the --bootfs parameter. Must be either vfat or ext4."; exit
 elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
     echo "Error: When firmware is set to EFI, boot filesystem must be set to vfat."; exit
+elif [ "$FIRMWARE" == "rpi" ] && [ "$BOOTFS" != "vfat" ]; then
+    echo "Error: When firmware is set to RPi, boot filesystem must be set to vfat."; exit
+elif [ "$FIRMWARE" == "rpi" ] && [ "$ARCH" != "arm64" ]; then
+    echo "Error: When firmware is set to RPi, ARCH must be set to arm64."; exit
+elif [ "$FIRMWARE" == "rpi" ] && [ "$PARTITIONTABLE" != "dos" ]; then
+    echo "Error: When firmware is set to RPi, PARTITIONTABLE must be set to dos."; exit
 elif [ "$PARTITIONTABLE" != "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
     echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
 elif [ "$ARCH" != "amd64" ] && [ "$ARCH" != "arm64" ]; then
@@ -286,20 +292,23 @@ function setup_gentoo {
 
     # Tools
     emerge $TOOLS --quiet
-
-    # Kernel + Bootloader
-    if [ $ARCH == "amd64" ]; then
-        # Install kernel // Finish later
+    
+    if [ $FIRMWARE == "none" ]; then
+        echo "No formware setup"
+    elif [ $FIRMWARE == "efi" ]; then
         emerge sys-kernel/gentoo-kernel-bin --quiet
-
-        # GRUB
         emerge sys-boot/grub --quiet
         echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
         grub-install --target=x86_64-efi --efi-directory=/boot
         grub-mkconfig -o /boot/grub/grub.cfg
-    elif [ $ARCH == "arm64" ]; then
+    elif [ $FIRMWARE == "bios" ]; then
+        emerge sys-kernel/gentoo-kernel-bin --quiet
+        emerge sys-boot/grub --quiet
+        grub-install
+        grub-mkconfig -o /boot/grub/grub.cfg
+    elif [ $FIRMWARE == "rpi" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
-        sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
+        sed -i "s~ROOTDEV~$ROOTDEV~" /boot/cmdline.txt
     fi
 
     # Clean
@@ -329,6 +338,9 @@ function setup_gentoo {
 
 }
 
+export -f setup_gentoo
+chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\;TOOLS=\"$TOOLS\";ROOTDEV=\"$ROOTDEV\"" setup_gentoo"
+
 # Store helper scripts for later usage
 echo '
 #!/bin/bash
@@ -341,9 +353,6 @@ emerge --depclean --quiet
 emerge -e --quiet @world @system # This will take long time
 ' > "${MOUNTPOINT}/root/00-rebuild-system.sh"
 chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
-
-export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\;TOOLS=\"$TOOLS\"" setup_gentoo"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
