@@ -310,6 +310,19 @@ function setup_gentoo {
     elif [ $FIRMWARE == "rpi" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
         sed -i "s~ROOTDEV~$ROOTDEV~" /boot/cmdline.txt
+        
+        emerge --quiet ntp sys-power/cpupower
+        rc-update add ntp-client default
+        rc-update add cpupower default
+
+        ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
+        rc-update add net.eth0 boot
+        
+        rc-update add swclock boot
+        rc-update del hwclock boot
+
+        #emerge -av sys-apps/rng-tools
+        #modprobe bcm2708-rng
     fi
 
     # Clean
@@ -320,23 +333,6 @@ function setup_gentoo {
     
     # Mark news as read
     eselect news read
-    
-    # RPi
-    if [ $ARCH == "arm64" ]; then
-        ln -sv /etc/init.d/net.lo /etc/init.d/net.eth0
-        rc-update add net.eth0 boot
-        
-        rc-update add swclock boot
-        rc-update del hwclock boot
-                
-        emerge --quiet ntp sys-power/cpupower -uf
-        rc-update add ntp-client default
-        rc-update add cpupower default
-        
-        #emerge -av sys-apps/rng-tools
-        #modprobe bcm2708-rng
-    fi
-
 }
 
 export -f setup_gentoo
