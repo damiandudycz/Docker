@@ -16,7 +16,7 @@ MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
 HOST_NAME="gentoo"
 TIMEZONE="Europe/Warsaw"
-TOOLS=""
+TOOLS="gentoolkit dhcpcd"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -285,7 +285,7 @@ function setup_gentoo {
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
     # Tools
-    emerge gentoolkit dhcpcd --quiet
+    emerge $TOOLS --quiet
 
     # Kernel + Bootloader
     if [ $ARCH == "amd64" ]; then
@@ -293,8 +293,8 @@ function setup_gentoo {
         emerge sys-kernel/gentoo-kernel-bin --quiet
 
         # GRUB
-        echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
         emerge sys-boot/grub --quiet
+        echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
         grub-install --target=x86_64-efi --efi-directory=/boot
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [ $ARCH == "arm64" ]; then
@@ -343,7 +343,7 @@ emerge -e --quiet @world @system # This will take long time
 chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
 
 export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\" setup_gentoo"
+chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\;TOOLS=\"$TOOLS\"" setup_gentoo"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
