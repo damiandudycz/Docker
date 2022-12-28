@@ -3,18 +3,20 @@
 # -----------------------------------------------------------------------------
 # PREDEFINIED VALUES ----------------------------------------------------------
 
+ARCH="amd64"
+PROFILE="no-multilib"
+FIRMWARE="none"
+PARTITIONTABLE="gpt"
 ROOTFS="btrfs"
 BOOTFS="vfat"
-SWAPSIZE=4096
+SWAPSIZE=0
+ZERODISK="yes"
+MAKEOPTS="-j4"
 MOUNTPOINT="./linux-installation"
 LOCALE="en_US.UTF-8"
-FIRMWARE="none"
 HOST_NAME="gentoo"
-PROFILE="no-multilib"
-MAKEOPTS="-j4"
-ARCH="amd64"
-PARTITIONTABLE="gpt"
-ZERODISK="yes"
+TIMEZONE="Europe/Warsaw"
+TOOLS=""
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -34,6 +36,7 @@ while [ $# -gt 0 ]; do
       --firmware) FIRMWARE="$2"; shift;;
       --profile) PROFILE="$2"; shift;;
       --makeopts) MAKEOPTS="$2"; shift;;
+      --tools) TOOLS="$2"; shift;;
       --partitiontable) PARTITIONTABLE="$2"; shift;;
       --arch) ARCH="$2"; shift;;
       --zerodisk) ZERODISK="$2"; shift;;
@@ -83,6 +86,7 @@ HOSTNAME=$HOST_NAME
 TIMEZONE=$TIMEZONE
 LOCALE=$LOCALE
 FIRMWARE=$FIRMWARE
+TOOLS=$TOOLS
 DEVICE=$DEVICE
 GUESTDEVICE=$GUESTDEVICE
 ROOTFS=$ROOTFS
@@ -99,32 +103,23 @@ MOUNTPOINT=$MOUNTPOINT
 if [ "$EUID" -ne 0 ]; then
     echo "Root privileges are required to run this script"; exit
 elif [ -z "$DEVICE" ] || [ ! -e "$DEVICE" ]; then
-    echo "Invalid device. The specified device does not exist or is not a "\
-    "block device."; exit
+    echo "Invalid device. The specified device does not exist or is not a block device."; exit
 elif [ -d "$MOUNTPOINT" ] && [ "$(ls -A "$MOUNTPOINT")" ]; then
-    echo "The mountpoint directory is not empty. Please specify an empty "\
-    "directory as the mountpoint."; exit
+    echo "The mountpoint directory is not empty. Please specify an empty directory as the mountpoint."; exit
 elif ! [[ "$NAME" =~ ^[a-zA-Z0-9]*$ ]]; then
-    echo "Invalid hostname. The hostname can only contain alphanumeric "\
-    "characters."; exit
+    echo "Invalid hostname. The hostname can only contain alphanumeric characters."; exit
 elif [ -z "$TIMEZONE" ] || [ ! -f "/usr/share/zoneinfo/$TIMEZONE" ]; then
-    echo "Invalid timezone. Please specify a valid timezone from the list in "\
-    "/usr/share/zoneinfo."; exit
+    echo "Invalid timezone. Please specify a valid timezone from the list in /usr/share/zoneinfo."; exit
 elif [ -z "$LOCALE" ] || [[ "$(locale -a | grep -w "$LOCALE")" != "" ]]; then
     echo "Invalid locale. The specified locale does not exist."; exit
-elif [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ]\
- && [ "$FIRMWARE" != "none" ]; then
-    echo "Error: Invalid value for the --firmware parameter. Must be one of: "\
-    "efi, bios, none."; exit
+elif [ "$FIRMWARE" != "efi" ] && [ "$FIRMWARE" != "bios" ] && [ "$FIRMWARE" != "none" ]; then
+    echo "Error: Invalid value for the --firmware parameter. Must be one of: efi, bios, none."; exit
 elif [ "$ROOTFS" != "ext4" ] && [ "$ROOTFS" != "btrfs" ]; then
-      echo "Error: Invalid value for the --rootfs parameter. Must be either "\
-      "ext4 or btrfs."; exit
+      echo "Error: Invalid value for the --rootfs parameter. Must be either ext4 or btrfs."; exit
 elif [ "$BOOTFS" != "vfat" ] && [ "$BOOTFS" != "ext4" ]; then
-      echo "Error: Invalid value for the --bootfs parameter. Must be either "\
-      "vfat or ext4."; exit
+      echo "Error: Invalid value for the --bootfs parameter. Must be either vfat or ext4."; exit
 elif [ "$FIRMWARE" == "efi" ] && [ "$BOOTFS" != "vfat" ]; then
-    echo "Error: When firmware is set to EFI, boot filesystem must be set to "\
-    "vfat."; exit
+    echo "Error: When firmware is set to EFI, boot filesystem must be set to vfat."; exit
 elif [ "$PARTITIONTABLE" != "dos" ] && [ "$PARTITIONTABLE" != "gpt" ]; then
     echo "Error: PARTITIONTABLE must be either gpt or dos"; exit
 elif [ "$ARCH" != "amd64" ] && [ "$ARCH" != "arm64" ]; then
@@ -154,8 +149,7 @@ if [ "$PARTITIONTABLE" == "gpt" ]; then
         FDROOT="n\n3\n\n\n" # Add root partition
         FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
         FDSWAPT="t\n2\n19\n" # Set swap partition type
-        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE}\
-        | fdisk $DEVICE
+        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE} | fdisk $DEVICE
     else
         FDROOT="n\n2\n\n\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
@@ -170,8 +164,7 @@ elif [ "$PARTITIONTABLE" == "dos" ]; then
         FDROOT="n\np\n3\n\n\n" # Add root partition
         FDSWAP="n\np\n2\n\n+${SWAPSIZE}M\n"
         FDSWAPT="t\n2\n19\n" # Set swap partition type
-        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE}\
-        | fdisk $DEVICE
+        printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     else
         FDROOT="n\np\n2\n\n\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
@@ -210,17 +203,48 @@ mount "$BOOTDEV" "$MOUNTPOINT/boot"
 # -----------------------------------------------------------------------------
 # BOOTSTRAPING ----------------------------------------------------------------
 
-STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/"\
-"latest-stage3-$ARCH-openrc.txt"
+STAGE3_DETAILS_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/latest-stage3-$ARCH-openrc.txt"
 STAGE3_PATH_SIZE=$(curl -L $STAGE3_DETAILS_URL | grep -v '^#')
 STAGE3_PATH=$(echo $STAGE3_PATH_SIZE | cut -d ' ' -f -1)
 STAGE3_URL="https://gentoo.osuosl.org/releases/$ARCH/autobuilds/$STAGE3_PATH"
 
 curl -L "$STAGE3_URL" -o "$MOUNTPOINT/stage3.tar.xz"
-tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner\
- -C "$MOUNTPOINT"
+tar xpf "$MOUNTPOINT/stage3.tar.xz" --xattrs-include='*.*' --numeric-owner -C "$MOUNTPOINT"
+
+# -----------------------------------------------------------------------------
+# SETUP CONFIG FILES ----------------------------------------------------------
 
 cp --dereference /etc/resolv.conf "${MOUNTPOINT}/etc/"
+
+# Hostname
+sed -i "s/hostname=\".*\"/hostname=\"$HOST_NAME\"/g" "${MOUNTPOINT}/etc/conf.d/hostname"
+
+# MAKE.conf
+echo "MAKEOPTS=\"${MAKEOPTS}\"" >> "${MOUNTPOINT}/etc/portage/make.conf"
+echo "ACCEPT_LICENSE=\"*\"" >> "${MOUNTPOINT}/etc/portage/make.conf"
+
+if [ $ARCH == "amd64" ]; then
+    sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "${MOUNTPOINT}/etc/portage/make.conf"
+elif [ $ARCH == "arm64" ]; then
+    sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 -ftree-vectorize -fomit-frame-pointer /' "${MOUNTPOINT}/etc/portage/make.conf"
+fi
+
+# Gentoo ebuild repository
+mkdir --parents "${MOUNTPOINT}/etc/portage/repos.conf"
+cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portage/repos.conf/gentoo.conf"
+
+# Timezone
+echo $TIMEZONE > "${MOUNTPOINT}/etc/timezone"
+sed -i "/$LOCALE/s/^#//g" "${MOUNTPOINT}/etc/locale.gen"
+
+# Locale
+sed -i 's/clock=.*/clock="local"/' "${MOUNTPOINT}/etc/conf.d/hwclock"
+
+# FSTab
+echo "$FSTABALL" >> "${MOUNTPOINT}/etc/fstab"
+
+# Password
+sed -i 's/^root:.*/root::::::::/' "${MOUNTPOINT}/etc/shadow"
 
 # -----------------------------------------------------------------------------
 # PREPARE FOR CHROOT ----------------------------------------------------------
@@ -241,64 +265,29 @@ function setup_gentoo {
     source /etc/profile
     export PS1="(chroot) ${PS1}"
     
-    # Setup hostname
-    sed -i "s/hostname=\".*\"/hostname=\"$HOST_NAME\"/g" /etc/conf.d/hostname
-
-    if [ $ARCH == "amd64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-march=native /' "/etc/portage/make.conf"
-    elif [ $ARCH == "arm64" ]; then
-        sed -i 's/^COMMON_FLAGS="/COMMON_FLAGS="-mcpu=cortex-a72 -ftree-vectorize -fomit-frame-pointer /'\
-         "/etc/portage/make.conf"
-    fi
-    
-    # MAKEOPTS
-    echo "MAKEOPTS=\"${MAKEOPTS}\"" >> "/etc/portage/make.conf"
-    echo "ACCEPT_LICENSE=\"*\"" >> "/etc/portage/make.conf"
-
-    # Gentoo ebuild repository
-    mkdir --parents "/etc/portage/repos.conf"
-    cp "/usr/share/portage/config/repos.conf" "/etc/portage/repos.conf/gentoo.conf"
-
     # Update repository
     emerge-webrsync --quiet
     emerge --sync --quiet
-
-    # Mark news as read
-    eselect news read
 
     # Setup profile
     profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect profile set $profile_num
 
     # Setup timezone
-    echo $TIMEZONE > /etc/timezone
     emerge --config sys-libs/timezone-data --quiet
 
     # Setup locale
-    sed -i "/$LOCALE/s/^#//g" /etc/locale.gen
     locale-gen
     locale_num=$(eselect locale list | grep -i ${LOCALE//-} | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
     eselect locale set $locale_num
-
-    # FSTab
-    echo "$FSTABALL" >> /etc/fstab
-
-    sed -i 's/clock=.*/clock="local"/' /etc/conf.d/hwclock
 
     # Update env
     env-update && source /etc/profile && export PS1="(chroot) ${PS1}"
 
     # Tools
-    emerge gentoolkit --quiet
+    emerge gentoolkit dhcpcd --quiet
 
-    # Setup CPU flags // Finish later
-    #emerge app-portage/cpuid2cpuflags --quiet
-    #echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
-    #emerge -C app-portage/cpuid2cpuflags
-
-    # Update packages // Finish later
-    #emerge --verbose --update --deep --newuse --quiet @world
-
+    # Kernel + Bootloader
     if [ $ARCH == "amd64" ]; then
         # Install kernel // Finish later
         emerge sys-kernel/gentoo-kernel-bin --quiet
@@ -313,21 +302,14 @@ function setup_gentoo {
         sed -i 's/ROOTDEV/\/dev\/mmcblk0p3/' /boot/cmdline.txt
     fi
 
-    #emerge app-admin/sysklogd --quiet
-    #rc-update add sysklogd default
-
-    # rebuild all
-    #emerge --depclean --quiet
-    #emerge -e --quiet @world @system # This will take long time
-
     # Clean
     emerge --depclean --quiet
     eclean distfiles
     eclean packages
     revdep-rebuild
-
-    # Remove password
-    sed -i 's/^root:.*/root::::::::/' /etc/shadow
+    
+    # Mark news as read
+    eselect news read
     
     # RPi
     if [ $ARCH == "arm64" ]; then
@@ -336,14 +318,10 @@ function setup_gentoo {
         
         rc-update add swclock boot
         rc-update del hwclock boot
-        
-        emerge --quiet dhcpcd
-        
-        emerge --quiet ntp -uf
-        #rc-update add ntp-client default
-        
-        emerge --quiet sys-power/cpupower -uf
-        #rc-update add cpupower default
+                
+        emerge --quiet ntp sys-power/cpupower -uf
+        rc-update add ntp-client default
+        rc-update add cpupower default
         
         #emerge -av sys-apps/rng-tools
         #modprobe bcm2708-rng
@@ -351,11 +329,21 @@ function setup_gentoo {
 
 }
 
+# Store helper scripts for later usage
+echo '
+#!/bin/bash
+emerge app-portage/cpuid2cpuflags --quiet
+echo "*/* $(cpuid2cpuflags)" > /etc/portage/package.use/00cpu-flags
+emerge -C app-portage/cpuid2cpuflags
+
+emerge --sync --quiet
+emerge --depclean --quiet
+emerge -e --quiet @world @system # This will take long time
+' > "${MOUNTPOINT}/root/00-rebuild-system.sh"
+chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
+
 export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "HOST_NAME=\"$HOST_NAME\";MAKEOPTS=\"$MAKEOPTS\";\
-PROFILE=\"$PROFILE\";TIMEZONE=\"$TIMEZONE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";\
-FSTABALL=\"$FSTABALL\";\
-setup_gentoo"
+chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\" setup_gentoo"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
