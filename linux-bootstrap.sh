@@ -329,7 +329,7 @@ function setup_gentoo {
 }
 
 export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\;TOOLS=\"$TOOLS\";ROOTDEV=\"$ROOTDEV\"" setup_gentoo"
+chroot $MOUNTPOINT /bin/bash -c "PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";TOOLS=\"$TOOLS\";ROOTDEV=\"$ROOTDEV\" setup_gentoo"
 
 # Store helper scripts for later usage
 echo '
