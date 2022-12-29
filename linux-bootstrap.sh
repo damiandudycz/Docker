@@ -186,8 +186,8 @@ fi
 # -----------------------------------------------------------------------------
 # FORMATTING PARTITIONS -------------------------------------------------------
 
-dd if=/dev/zero of={BOOTDEV} count=1024
-dd if=/dev/zero of={ROOTDEV} count=1024
+dd if=/dev/zero of=${BOOTDEV} count=1024
+dd if=/dev/zero of=${ROOTDEV} count=1024
 
 case $BOOTFS in
 vfat) mkfs.vfat -F 32 $BOOTDEV;;
