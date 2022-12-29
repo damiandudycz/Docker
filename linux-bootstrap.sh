@@ -58,20 +58,13 @@ if [ $SWAPSIZE -gt 0 ]; then
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABSWAP="${GUESTDEVICE}2 none swap sw 0 0"
     FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
-    FSTABALL="
-${FSTABBOOT}
-${FSTABSWAP}
-${FSTABROOT}
-"
+    FSTABALL="${FSTABBOOT}\n${FSTABSWAP}\n${FSTABROOT}"
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="${GUESTDEVICE}2 / $ROOTFS noatime 0 1"
-    FSTABALL="
-${FSTABBOOT}
-${FSTABROOT}
-"
+    FSTABALL="${FSTABBOOT}\n${FSTABROOT}"
 fi
 
 # -----------------------------------------------------------------------------
