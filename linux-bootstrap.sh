@@ -148,6 +148,8 @@ exec > >(tee -a installation-log.txt) 2>&1
 # wipe disk space and create disk layout
 if [ "$ZERODISK" == "yes" ]; then
     dd if=/dev/zero of=$DEVICE bs=1M status=progress 2>&1
+else
+    wipefs --all --force $DEVICE
 fi
 
 if [ "$PARTITIONTABLE" == "gpt" ]; then
