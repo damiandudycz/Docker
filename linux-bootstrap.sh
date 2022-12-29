@@ -186,13 +186,16 @@ fi
 # -----------------------------------------------------------------------------
 # FORMATTING PARTITIONS -------------------------------------------------------
 
+dd if=/dev/zero of={BOOTDEV} count=1024
+dd if=/dev/zero of={ROOTDEV} count=1024
+
 case $BOOTFS in
 vfat) mkfs.vfat -F 32 $BOOTDEV;;
 ext4) mkfs.ext4 $BOOTDEV;;
 *) echo "Invalid value for BOOTFS";;
 esac
 case $ROOTFS in
-btrfs) mkfs.btrfs $ROOTDEV;;
+btrfs) mkfs.btrfs -f $ROOTDEV;;
 ext4) mkfs.ext4 $ROOTDEV;;
 *) echo "Invalid value for ROOTFS";;
 esac
