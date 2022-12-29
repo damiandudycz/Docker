@@ -161,7 +161,7 @@ if [ "$PARTITIONTABLE" == "gpt" ]; then
         FDSWAPT="t\n2\n19\n" # Set swap partition type
         printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE} | fdisk $DEVICE
     else
-        FDROOT="n\n2\n\n\n" # Add root partition
+        FDROOT="n\n2\n\n+${ROOTSIZE}M\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
     fi
 elif [ "$PARTITIONTABLE" == "dos" ]; then
@@ -176,7 +176,7 @@ elif [ "$PARTITIONTABLE" == "dos" ]; then
         FDSWAPT="t\n2\n19\n" # Set swap partition type
         printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     else
-        FDROOT="n\np\n2\n\n\n" # Add root partition
+        FDROOT="n\np\n2\n\n+${ROOTSIZE}M\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     fi
 fi
