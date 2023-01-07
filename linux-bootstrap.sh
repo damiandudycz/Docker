@@ -9,7 +9,6 @@ FIRMWARE="none"
 PARTITIONTABLE="gpt"
 ROOTFS="btrfs"
 BOOTFS="vfat"
-ROOTSIZE=16384 # MB
 SWAPSIZE=0
 ZERODISK="yes"
 MAKEOPTS="-j4"
@@ -30,7 +29,6 @@ while [ $# -gt 0 ]; do
       --rootfs) ROOTFS="$2"; shift;;
       --bootfs) BOOTFS="$2"; shift;;
       --swapsize) SWAPSIZE=$2; shift;;
-      --rootsize) ROOTSIZE=$2; shift;;
       --mountpoint) MOUNTPOINT="$2"; shift;;
       --hostname) HOST_NAME="$2"; shift;;
       --timezone) TIMEZONE="$2"; shift;;
@@ -57,6 +55,7 @@ if [ $SWAPSIZE -gt 0 ]; then
     BOOTDEV="${DEVICE}1"
     SWAPDEV="${DEVICE}2"
     ROOTDEV="${DEVICE}3"
+    ROOTDEVGUEST="${GUESTDEVICE}3"
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABSWAP="${GUESTDEVICE}2 none swap sw 0 0"
     FSTABROOT="${GUESTDEVICE}3 / $ROOTFS noatime 0 1"
@@ -68,6 +67,7 @@ ${FSTABROOT}
 else
     BOOTDEV="${DEVICE}1"
     ROOTDEV="${DEVICE}2"
+    ROOTDEVGUEST="${GUESTDEVICE}2"
     FSTABBOOT="${GUESTDEVICE}1 /boot $BOOTFS defaults,noatime 0 2"
     FSTABROOT="${GUESTDEVICE}2 / $ROOTFS noatime 0 1"
     FSTABALL="
@@ -92,7 +92,6 @@ FIRMWARE=$FIRMWARE
 TOOLS=$TOOLS
 DEVICE=$DEVICE
 GUESTDEVICE=$GUESTDEVICE
-ROOTSIZE=$ROOTSIZE
 ROOTFS=$ROOTFS
 BOOTFS=$BOOTFS
 SWAPSIZE=$SWAPSIZE
@@ -158,12 +157,12 @@ if [ "$PARTITIONTABLE" == "gpt" ]; then
     FDBOOTT="t\n1\n4\n" # Set boot partition type
     FDWRITE="w\n" # Write partition scheme
     if [ ! -z $SWAPDEV ]; then
-        FDROOT="n\n3\n\n+${ROOTSIZE}M\n" # Add root partition
+        FDROOT="n\n3\n\n\n" # Add root partition
         FDSWAP="n\n2\n\n+${SWAPSIZE}M\n"
         FDSWAPT="t\n2\n19\n" # Set swap partition type
         printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDWRITE} | fdisk $DEVICE
     else
-        FDROOT="n\n2\n\n+${ROOTSIZE}M\n" # Add root partition
+        FDROOT="n\n2\n\n\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDWRITE} | fdisk $DEVICE
     fi
 elif [ "$PARTITIONTABLE" == "dos" ]; then
@@ -173,12 +172,12 @@ elif [ "$PARTITIONTABLE" == "dos" ]; then
     FDBOOTT="t\n1\n4\n" # Set boot partition type
     FDWRITE="w\n" # Write partition scheme
     if [ ! -z $SWAPDEV ]; then
-        FDROOT="n\np\n3\n\n+${ROOTSIZE}M\n" # Add root partition
+        FDROOT="n\np\n3\n\n\n" # Add root partition
         FDSWAP="n\np\n2\n\n+${SWAPSIZE}M\n"
         FDSWAPT="t\n2\n19\n" # Set swap partition type
         printf ${FDINIT}${FDBOOT}${FDSWAP}${FDROOT}${FDBOOTT}${FDSWAPT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     else
-        FDROOT="n\np\n2\n\n+${ROOTSIZE}M\n" # Add root partition
+        FDROOT="n\np\n2\n\n\n" # Add root partition
         printf ${FDINIT}${FDBOOT}${FDROOT}${FDBOOTT}${FDBOOTABLE}${FDWRITE} | fdisk $DEVICE
     fi
 fi
@@ -317,7 +316,7 @@ function setup_gentoo {
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [ $FIRMWARE == "rpi" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
-        sed -i "s~ROOTDEV~$ROOTDEV~" /boot/cmdline.txt
+        sed -i "s~ROOTDEV~$ROOTDEVGUEST~" /boot/cmdline.txt
         
         emerge --quiet ntp sys-power/cpupower
         rc-update add ntp-client default
