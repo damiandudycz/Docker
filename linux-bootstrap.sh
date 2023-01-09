@@ -305,9 +305,14 @@ function setup_gentoo {
         echo "No formware setup"
     elif [ $FIRMWARE == "efi" ]; then
         emerge sys-kernel/gentoo-kernel-bin --quiet
-        emerge sys-boot/grub --quiet
         echo 'GRUB_PLATFORMS="efi-64"' >> /etc/portage/make.conf
-        grub-install --target=x86_64-efi --efi-directory=/boot
+        emerge sys-boot/grub --quiet
+        if [ "$ARCH" == "arm64" ]; then
+            GRUB_TARGET="arm64-efi"
+        else
+            GRUB_TARGET="x86_64-efi"
+        fi
+        grub-install --target=$GRUB_TARGET --efi-directory=/boot
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [ $FIRMWARE == "bios" ]; then
         emerge sys-kernel/gentoo-kernel-bin --quiet
