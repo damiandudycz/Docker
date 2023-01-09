@@ -363,5 +363,13 @@ emerge -e --quiet @world @system # This will take long time
 ' > "${MOUNTPOINT}/root/00-rebuild-system.sh"
 chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
 
+echo '
+#!/bin/bash
+useradd -m -G users,wheel gentoo
+echo "Added user gentoo. Please su gentoo and set new password."
+#passwd -l root # Disable root password
+' > "${MOUNTPOINT}/root/01-add-user.sh"
+chmod +x "${MOUNTPOINT}/root/01-add-user.sh"
+
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
