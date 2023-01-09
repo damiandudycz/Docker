@@ -17,6 +17,7 @@ LOCALE="en_US.UTF-8"
 HOST_NAME="gentoo"
 TIMEZONE="Europe/Warsaw"
 TOOLS="gentoolkit dhcpcd"
+LOCALTIME="no"
 
 # -----------------------------------------------------------------------------
 # PARAMS - LOADING ------------------------------------------------------------
@@ -40,6 +41,8 @@ while [ $# -gt 0 ]; do
       --partitiontable) PARTITIONTABLE="$2"; shift;;
       --arch) ARCH="$2"; shift;;
       --zerodisk) ZERODISK="$2"; shift;;
+      --localtime) LOCALTIME="$2"; shift;;
+      --preset) PESET="$2"; shift;;
       *) echo "Invalid option: $1" >&2; exit 1;;
     esac
     shift
@@ -87,6 +90,7 @@ PROFILE=$PROFILE
 MAKEOPTS=$MAKEOPTS
 HOSTNAME=$HOST_NAME
 TIMEZONE=$TIMEZONE
+LOCALTIME=$LOCALTIME
 LOCALE=$LOCALE
 FIRMWARE=$FIRMWARE
 TOOLS=$TOOLS
@@ -137,6 +141,8 @@ fi
 
 # -----------------------------------------------------------------------------
 # Log output ------------------------------------------------------------------
+
+read -p "Press enter to continue. Ctrl+C to cancel"
 
 touch installation-log.txt
 exec > >(tee -a installation-log.txt) 2>&1
@@ -251,8 +257,10 @@ cp "${MOUNTPOINT}/usr/share/portage/config/repos.conf" "${MOUNTPOINT}/etc/portag
 echo $TIMEZONE > "${MOUNTPOINT}/etc/timezone"
 sed -i "/$LOCALE/s/^#//g" "${MOUNTPOINT}/etc/locale.gen"
 
-# Locale
-sed -i 's/clock=.*/clock="local"/' "${MOUNTPOINT}/etc/conf.d/hwclock"
+# Local time
+if [ "$LOCALTIME" == "yes" ]; then
+    sed -i 's/clock=.*/clock="local"/' "${MOUNTPOINT}/etc/conf.d/hwclock"
+fi
 
 # FSTab
 echo "$FSTABALL" >> "${MOUNTPOINT}/etc/fstab"
@@ -359,17 +367,33 @@ emerge -C app-portage/cpuid2cpuflags
 
 emerge --sync --quiet
 emerge --depclean --quiet
-emerge -e --quiet @world @system # This will take long time
+emerge -e --quiet @system @world # This will take long time
 ' > "${MOUNTPOINT}/root/00-rebuild-system.sh"
 chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
+
+echo '
+#!/bin/bash
+emerge --sync --quiet
+emerge --update --newuse --deep --quiet @system @world
+emerge --depclean --quiet
+revdep-rebuild
+' > "${MOUNTPOINT}/root/01-update-system.sh"
+chmod +x "${MOUNTPOINT}/root/01-update-system.sh"
 
 echo '
 #!/bin/bash
 useradd -m -G users,wheel gentoo
 echo "Added user gentoo. Please su gentoo and set new password."
 #passwd -l root # Disable root password
-' > "${MOUNTPOINT}/root/01-add-user.sh"
-chmod +x "${MOUNTPOINT}/root/01-add-user.sh"
+' > "${MOUNTPOINT}/root/02-add-user.sh"
+chmod +x "${MOUNTPOINT}/root/02-add-user.sh"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
+
+# Umount disks
+umount ${MOUNTPOINT}/proc
+umount ${MOUNTPOINT}/sys
+umount ${MOUNTPOINT}/dev
+umount ${MOUNTPOINT}/boot
+umount ${MOUNTPOINT}
