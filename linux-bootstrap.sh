@@ -392,8 +392,8 @@ chmod +x "${MOUNTPOINT}/root/02-add-user.sh"
 rm $MOUNTPOINT/stage3.tar.xz
 
 # Umount disks
+umount ${MOUNTPOINT}/dev
 umount ${MOUNTPOINT}/proc
 umount ${MOUNTPOINT}/sys
-umount ${MOUNTPOINT}/dev
 umount ${MOUNTPOINT}/boot
 umount ${MOUNTPOINT}
