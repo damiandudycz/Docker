@@ -325,7 +325,7 @@ function setup_gentoo {
     elif [ $FIRMWARE == "bios" ]; then
         emerge sys-kernel/gentoo-kernel-bin --quiet
         emerge sys-boot/grub --quiet
-        grub-install
+        grub-install $DEVICE
         grub-mkconfig -o /boot/grub/grub.cfg
     elif [ $FIRMWARE == "rpi" ]; then
         emerge --quiet sys-boot/raspberrypi-firmware sys-kernel/raspberrypi-image
@@ -356,7 +356,7 @@ function setup_gentoo {
 }
 
 export -f setup_gentoo
-chroot $MOUNTPOINT /bin/bash -c "FIRMWARE=\"$FIRMWARE\";PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";TOOLS=\"$TOOLS\";ROOTDEV=\"$ROOTDEV\" setup_gentoo"
+chroot $MOUNTPOINT /bin/bash -c "FIRMWARE=\"$FIRMWARE\";PROFILE=\"$PROFILE\";LOCALE=\"$LOCALE\";ARCH=\"$ARCH\";TOOLS=\"$TOOLS\";ROOTDEV=\"$ROOTDEV\";DEVICE=\"$DEVICE\" setup_gentoo"
 
 # Store helper scripts for later usage
 echo '
