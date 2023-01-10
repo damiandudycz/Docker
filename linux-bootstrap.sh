@@ -292,8 +292,10 @@ function setup_gentoo {
     emerge --sync --quiet
 
     # Setup profile
-    profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
-    eselect profile set $profile_num
+    if [ ! -z "$PROFILE" ]; then
+        profile_num=$(eselect profile list | grep ".*/${PROFILE} .*" | awk '/\]/ "{print $1}"' | grep -oP '\[\K[^]]+')
+        eselect profile set $profile_num
+    fi
 
     # Setup timezone
     emerge --config sys-libs/timezone-data --quiet
@@ -367,14 +369,14 @@ emerge -C app-portage/cpuid2cpuflags
 
 emerge --sync --quiet
 emerge --depclean --quiet
-emerge -e --quiet @system @world # This will take long time
+emerge -e --quiet @world # This will take long time
 ' > "${MOUNTPOINT}/root/00-rebuild-system.sh"
 chmod +x "${MOUNTPOINT}/root/00-rebuild-system.sh"
 
 echo '
 #!/bin/bash
 emerge --sync --quiet
-emerge --update --newuse --deep --quiet @system @world
+emerge --update --newuse --deep --quiet --with-bdeps=y --changed-deps @world
 emerge --depclean --quiet
 revdep-rebuild
 ' > "${MOUNTPOINT}/root/01-update-system.sh"
@@ -387,6 +389,13 @@ echo "Added user gentoo. Please su gentoo and set new password."
 #passwd -l root # Disable root password
 ' > "${MOUNTPOINT}/root/02-add-user.sh"
 chmod +x "${MOUNTPOINT}/root/02-add-user.sh"
+
+echo '
+#!/bin/bash
+rc-update add sshd default
+rc-service sshd start
+' > "${MOUNTPOINT}/root/02-add-user.sh"
+chmod +x "${MOUNTPOINT}/root/02-enable-openssh.sh"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
