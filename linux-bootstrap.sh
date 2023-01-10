@@ -394,8 +394,8 @@ echo '
 #!/bin/bash
 rc-update add sshd default
 rc-service sshd start
-' > "${MOUNTPOINT}/root/02-add-user.sh"
-chmod +x "${MOUNTPOINT}/root/02-enable-openssh.sh"
+' > "${MOUNTPOINT}/root/03-enable-openssh.sh"
+chmod +x "${MOUNTPOINT}/root/03-enable-openssh.sh"
 
 # Cleaning files
 rm $MOUNTPOINT/stage3.tar.xz
